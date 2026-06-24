@@ -613,6 +613,56 @@ paths:
         "403":
           description: Not your race
 
+  /portal/scrape:
+    post:
+      operationId: portalScrapePreview
+      tags: [portal]
+      summary: Scrape and preview results from a URL without saving
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScrapeInput"
+      responses:
+        "200":
+          description: Scraped results preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScrapePreview"
+        "422":
+          description: Scrape failed or site not supported
+
+  /portal/races/{id}/scrape-import:
+    post:
+      operationId: portalScrapeImport
+      tags: [portal]
+      summary: Scrape results from a URL and import them for a race
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScrapeInput"
+      responses:
+        "200":
+          description: Import successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScrapeImportResponse"
+        "403":
+          description: Not your race
+        "422":
+          description: Scrape failed
+
 components:
   schemas:
     HealthStatus:
@@ -1132,3 +1182,65 @@ components:
           type: integer
         difficultyScore:
           type: number
+
+    ScrapeInput:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+
+    ScrapedResultItem:
+      type: object
+      required: [runnerName]
+      properties:
+        runnerName:
+          type: string
+        country:
+          type: ["string", "null"]
+        gender:
+          type: ["string", "null"]
+        position:
+          type: ["integer", "null"]
+        finishTimeSeconds:
+          type: ["integer", "null"]
+        dnf:
+          type: boolean
+
+    ScrapePreview:
+      type: object
+      required: [source, url, totalFound, results]
+      properties:
+        raceName:
+          type: ["string", "null"]
+        raceDate:
+          type: ["string", "null"]
+        raceLocation:
+          type: ["string", "null"]
+        source:
+          type: string
+        url:
+          type: string
+        totalFound:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScrapedResultItem"
+
+    ScrapeImportResponse:
+      type: object
+      required: [resultsCreated, runnersCreated, runnersUpdated, difficultyScore]
+      properties:
+        resultsCreated:
+          type: integer
+        runnersCreated:
+          type: integer
+        runnersUpdated:
+          type: integer
+        difficultyScore:
+          type: number
+        source:
+          type: ["string", "null"]
+        raceName:
+          type: ["string", "null"]

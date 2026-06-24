@@ -4,7 +4,7 @@ import { usePortalAuth } from "./PortalAuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LogOut, Plus, Flag, Settings } from "lucide-react";
+import { LogOut, Plus, Flag, Settings, Globe } from "lucide-react";
 import { formatDate } from "@/lib/format";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -41,6 +41,11 @@ export default function PortalDashboard() {
           <p className="text-muted-foreground mt-1">{organizer?.organizationName} Dashboard</p>
         </div>
         <div className="flex items-center gap-3">
+          <Link href="/portal/scrape">
+            <Button variant="secondary" className="font-bold uppercase tracking-wider bg-primary/20 text-primary hover:bg-primary/30">
+              <Globe className="mr-2 h-4 w-4" /> Import from Web
+            </Button>
+          </Link>
           <Link href="/portal/races/new">
             <Button className="font-bold uppercase tracking-wider">
               <Plus className="mr-2 h-4 w-4" /> Create New Race

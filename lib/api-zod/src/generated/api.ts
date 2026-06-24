@@ -684,3 +684,49 @@ export const PortalSubmitResultsResponse = zod.object({
 })
 
 
+/**
+ * @summary Scrape and preview results from a URL without saving
+ */
+export const PortalScrapePreviewBody = zod.object({
+  "url": zod.string()
+})
+
+export const PortalScrapePreviewResponse = zod.object({
+  "raceName": zod.string().nullish(),
+  "raceDate": zod.string().nullish(),
+  "raceLocation": zod.string().nullish(),
+  "source": zod.string(),
+  "url": zod.string(),
+  "totalFound": zod.number(),
+  "results": zod.array(zod.object({
+  "runnerName": zod.string(),
+  "country": zod.string().nullish(),
+  "gender": zod.string().nullish(),
+  "position": zod.number().nullish(),
+  "finishTimeSeconds": zod.number().nullish(),
+  "dnf": zod.boolean().optional()
+}))
+})
+
+
+/**
+ * @summary Scrape results from a URL and import them for a race
+ */
+export const PortalScrapeImportParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const PortalScrapeImportBody = zod.object({
+  "url": zod.string()
+})
+
+export const PortalScrapeImportResponse = zod.object({
+  "resultsCreated": zod.number(),
+  "runnersCreated": zod.number(),
+  "runnersUpdated": zod.number(),
+  "difficultyScore": zod.number(),
+  "source": zod.string().nullish(),
+  "raceName": zod.string().nullish()
+})
+
+

@@ -480,6 +480,47 @@ export interface BulkResultsResponse {
   difficultyScore?: number;
 }
 
+export interface ScrapeInput {
+  url: string;
+}
+
+export interface ScrapedResultItem {
+  runnerName: string;
+  /** @nullable */
+  country?: string | null;
+  /** @nullable */
+  gender?: string | null;
+  /** @nullable */
+  position?: number | null;
+  /** @nullable */
+  finishTimeSeconds?: number | null;
+  dnf?: boolean;
+}
+
+export interface ScrapePreview {
+  /** @nullable */
+  raceName?: string | null;
+  /** @nullable */
+  raceDate?: string | null;
+  /** @nullable */
+  raceLocation?: string | null;
+  source: string;
+  url: string;
+  totalFound: number;
+  results: ScrapedResultItem[];
+}
+
+export interface ScrapeImportResponse {
+  resultsCreated: number;
+  runnersCreated: number;
+  runnersUpdated: number;
+  difficultyScore: number;
+  /** @nullable */
+  source?: string | null;
+  /** @nullable */
+  raceName?: string | null;
+}
+
 export type ListRunnersParams = {
 /**
  * @nullable

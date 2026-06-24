@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { usePortalSubmitResults, useGetRace, getGetRaceQueryKey } from "@workspace/api-client-react";
+import { usePortalSubmitResults, useGetRace, getGetRaceQueryKey, usePortalScrapePreview, usePortalScrapeImport } from "@workspace/api-client-react";
 import { useLocation, useParams, Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
@@ -10,8 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Save, Plus, Trash2, Trophy, AlertTriangle } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ArrowLeft, Save, Plus, Trash2, Trophy, AlertTriangle, Globe, Download, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { formatSecondsToTime } from "@/lib/format";
 
 function parseTime(s: string): number | null {
   if (!s) return null;
@@ -55,6 +57,43 @@ export default function PortalRaceResults() {
     control: form.control,
     name: "results",
   });
+
+  const [scrapeModalOpen, setScrapeModalOpen] = useState(false);
+  const [scrapeUrl, setScrapeUrl] = useState("");
+  const previewMutation = usePortalScrapePreview();
+  const importMutation = usePortalScrapeImport();
+
+  const handleScrapeFetch = () => {
+    if (!scrapeUrl) return;
+    previewMutation.mutate({ data: { url: scrapeUrl } });
+  };
+
+  const handleScrapeImport = () => {
+    if (!scrapeUrl) return;
+    importMutation.mutate(
+      { id, data: { url: scrapeUrl } },
+      {
+        onSuccess: (data) => {
+          toast({
+            title: "Import Successful",
+            description: `${data.resultsCreated} results imported, ${data.runnersCreated} new runners. Rankings updated.`,
+          });
+          setScrapeModalOpen(false);
+          setScrapeUrl("");
+          previewMutation.reset();
+          // Optionally refetch race data here if needed, or redirect
+          setTimeout(() => setLocation("/portal/dashboard"), 1000);
+        },
+        onError: (err) => {
+          toast({
+            variant: "destructive",
+            title: "Import failed",
+            description: (err as any)?.message || "Failed to import scraped results.",
+          });
+        }
+      }
+    );
+  };
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     // Transform to BulkResultItem
@@ -240,14 +279,107 @@ export default function PortalRaceResults() {
               </div>
 
               <div className="flex flex-col sm:flex-row justify-between items-center gap-4 p-6 bg-muted/10 border-t border-border/50">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => append({ runnerName: "", country: "", gender: "M", finishTimeStr: "", dnf: false })}
-                  className="w-full sm:w-auto font-bold uppercase tracking-wider"
-                >
-                  <Plus className="mr-2 h-4 w-4" /> Add Row
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => append({ runnerName: "", country: "", gender: "M", finishTimeStr: "", dnf: false })}
+                    className="w-full sm:w-auto font-bold uppercase tracking-wider"
+                  >
+                    <Plus className="mr-2 h-4 w-4" /> Add Row
+                  </Button>
+                  
+                  <Dialog open={scrapeModalOpen} onOpenChange={(open) => {
+                    setScrapeModalOpen(open);
+                    if (!open) {
+                      previewMutation.reset();
+                      importMutation.reset();
+                    }
+                  }}>
+                    <DialogTrigger asChild>
+                      <Button type="button" variant="secondary" className="w-full sm:w-auto font-bold uppercase tracking-wider bg-primary/10 text-primary hover:bg-primary/20">
+                        <Globe className="mr-2 h-4 w-4" /> Import from Web
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[600px] bg-card border-border">
+                      <DialogHeader>
+                        <DialogTitle className="uppercase font-bold tracking-wider">Import Web Results</DialogTitle>
+                        <DialogDescription>
+                          Paste a supported URL (UltraSignup, DUV, HTML table) to automatically import results into this race.
+                        </DialogDescription>
+                      </DialogHeader>
+                      
+                      <div className="space-y-4 py-4">
+                        <div className="flex gap-3">
+                          <Input 
+                            placeholder="https://..." 
+                            value={scrapeUrl}
+                            onChange={(e) => setScrapeUrl(e.target.value)}
+                            disabled={previewMutation.isPending || importMutation.isPending}
+                          />
+                          <Button 
+                            onClick={handleScrapeFetch}
+                            disabled={!scrapeUrl || previewMutation.isPending || importMutation.isPending}
+                          >
+                            {previewMutation.isPending ? "..." : "Fetch"}
+                          </Button>
+                        </div>
+                        
+                        {previewMutation.isError && (
+                          <div className="p-3 text-sm text-destructive bg-destructive/10 rounded border border-destructive/20">
+                            Failed to scrape URL. Ensure it is a supported site.
+                          </div>
+                        )}
+                        
+                        {previewMutation.isSuccess && previewMutation.data && (
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/20 p-2 rounded">
+                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              Found {previewMutation.data.totalFound} results from {previewMutation.data.source}
+                            </div>
+                            
+                            <div className="rounded border border-border/50 overflow-hidden text-sm">
+                              <table className="w-full text-left">
+                                <thead className="bg-muted/30 text-muted-foreground text-xs uppercase">
+                                  <tr>
+                                    <th className="px-3 py-2">Pos</th>
+                                    <th className="px-3 py-2">Name</th>
+                                    <th className="px-3 py-2">Time</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border/50">
+                                  {previewMutation.data.results.slice(0, 5).map((r, i) => (
+                                    <tr key={i} className="hover:bg-muted/10">
+                                      <td className="px-3 py-2">{r.position || "-"}</td>
+                                      <td className="px-3 py-2 font-medium">{r.runnerName} {r.dnf && "(DNF)"}</td>
+                                      <td className="px-3 py-2 font-mono">{formatSecondsToTime(r.finishTimeSeconds)}</td>
+                                    </tr>
+                                  ))}
+                                  {previewMutation.data.results.length > 5 && (
+                                    <tr>
+                                      <td colSpan={3} className="px-3 py-2 text-center text-muted-foreground text-xs">
+                                        + {previewMutation.data.results.length - 5} more rows
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                            
+                            <Button 
+                              className="w-full font-bold uppercase tracking-widest"
+                              onClick={handleScrapeImport}
+                              disabled={importMutation.isPending}
+                            >
+                              <Download className="mr-2 h-4 w-4" />
+                              {importMutation.isPending ? "Importing..." : "Import into this race"}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
 
                 <Button 
                   type="submit" 

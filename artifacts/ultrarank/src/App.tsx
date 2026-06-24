@@ -13,6 +13,7 @@ import RaceDetail from "@/pages/race-detail";
 import PortalLogin from "@/pages/portal/login";
 import PortalRegister from "@/pages/portal/register";
 import PortalDashboard from "@/pages/portal/dashboard";
+import PortalScrape from "@/pages/portal/scrape";
 import PortalRaceNew from "@/pages/portal/races-new";
 import PortalRaceResults from "@/pages/portal/races-results";
 import { PortalAuthProvider, RequirePortalAuth } from "@/pages/portal/PortalAuthContext";
@@ -41,6 +42,11 @@ function Router() {
         <Route path="/portal/dashboard">
           <RequirePortalAuth>
             <PortalDashboard />
+          </RequirePortalAuth>
+        </Route>
+        <Route path="/portal/scrape">
+          <RequirePortalAuth>
+            <PortalScrape />
           </RequirePortalAuth>
         </Route>
         <Route path="/portal/races/new">
