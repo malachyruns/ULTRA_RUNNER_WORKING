@@ -17,6 +17,8 @@ tags:
     description: Race results
   - name: stats
     description: Aggregate statistics
+  - name: portal
+    description: Race organiser portal
 
 paths:
   /healthz:
@@ -459,6 +461,158 @@ paths:
                 items:
                   $ref: "#/components/schemas/ActivityItem"
 
+  /portal/register:
+    post:
+      operationId: portalRegister
+      tags: [portal]
+      summary: Register a new race organiser account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganizerRegisterInput"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizerProfile"
+        "409":
+          description: Email already registered
+
+  /portal/login:
+    post:
+      operationId: portalLogin
+      tags: [portal]
+      summary: Log in as a race organiser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganizerLoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizerProfile"
+        "401":
+          description: Invalid credentials
+
+  /portal/logout:
+    post:
+      operationId: portalLogout
+      tags: [portal]
+      summary: Log out
+      responses:
+        "204":
+          description: Logged out
+
+  /portal/me:
+    get:
+      operationId: portalMe
+      tags: [portal]
+      summary: Get current organiser session
+      responses:
+        "200":
+          description: Current organiser
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizerProfile"
+        "401":
+          description: Not authenticated
+
+  /portal/races:
+    get:
+      operationId: portalListRaces
+      tags: [portal]
+      summary: List races owned by the organiser
+      responses:
+        "200":
+          description: Organiser's races
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Race"
+    post:
+      operationId: portalCreateRace
+      tags: [portal]
+      summary: Create a race as an organiser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganizerRaceInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Race"
+
+  /portal/races/{id}:
+    patch:
+      operationId: portalUpdateRace
+      tags: [portal]
+      summary: Update a race owned by the organiser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganizerRaceUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Race"
+        "403":
+          description: Not your race
+
+  /portal/races/{id}/results:
+    post:
+      operationId: portalSubmitResults
+      tags: [portal]
+      summary: Bulk submit finisher results for a race
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkResultsInput"
+      responses:
+        "200":
+          description: Results submitted and rankings updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkResultsResponse"
+        "403":
+          description: Not your race
+
 components:
   schemas:
     HealthStatus:
@@ -563,7 +717,7 @@ components:
 
     Race:
       type: object
-      required: [id, name, location, country, date, distanceKm, category, surface, status]
+      required: [id, name, location, country, date, distanceKm, category, surface, status, difficultyScore]
       properties:
         id:
           type: integer
@@ -594,6 +748,17 @@ components:
           enum: [upcoming, results_pending, completed]
         finishersCount:
           type: ["integer", "null"]
+        weatherConditions:
+          type: ["string", "null"]
+          enum: [clear, rain, heat, snow, storm, null]
+        technicalityRating:
+          type: ["integer", "null"]
+        difficultyScore:
+          type: number
+        organizerId:
+          type: ["integer", "null"]
+        organizerName:
+          type: ["string", "null"]
         createdAt:
           type: string
 
@@ -818,4 +983,152 @@ components:
         dnf:
           type: boolean
         points:
+          type: number
+
+    OrganizerProfile:
+      type: object
+      required: [id, name, email, organizationName]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        organizationName:
+          type: string
+        website:
+          type: ["string", "null"]
+        isVerified:
+          type: boolean
+        createdAt:
+          type: string
+
+    OrganizerRegisterInput:
+      type: object
+      required: [name, email, password, organizationName]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+        password:
+          type: string
+          minLength: 8
+        organizationName:
+          type: string
+          minLength: 1
+        website:
+          type: ["string", "null"]
+
+    OrganizerLoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    OrganizerRaceInput:
+      type: object
+      required: [name, location, country, date, distanceKm, category, surface]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        location:
+          type: string
+        country:
+          type: string
+        countryCode:
+          type: ["string", "null"]
+        date:
+          type: string
+        distanceKm:
+          type: number
+        category:
+          type: string
+          enum: [50k, 100k, 50mi, 100mi, 200mi, other]
+        surface:
+          type: string
+          enum: [trail, road, mountain, mixed]
+        totalElevationM:
+          type: ["integer", "null"]
+        description:
+          type: ["string", "null"]
+        weatherConditions:
+          type: ["string", "null"]
+          enum: [clear, rain, heat, snow, storm, null]
+        technicalityRating:
+          type: ["integer", "null"]
+
+    OrganizerRaceUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        location:
+          type: string
+        country:
+          type: string
+        date:
+          type: string
+        distanceKm:
+          type: number
+        category:
+          type: string
+        surface:
+          type: string
+        totalElevationM:
+          type: ["integer", "null"]
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [upcoming, results_pending, completed]
+        weatherConditions:
+          type: ["string", "null"]
+          enum: [clear, rain, heat, snow, storm, null]
+        technicalityRating:
+          type: ["integer", "null"]
+
+    BulkResultsInput:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/BulkResultItem"
+
+    BulkResultItem:
+      type: object
+      required: [runnerName, position]
+      properties:
+        runnerName:
+          type: string
+        country:
+          type: ["string", "null"]
+        gender:
+          type: ["string", "null"]
+        position:
+          type: ["integer", "null"]
+        finishTimeSeconds:
+          type: ["integer", "null"]
+        dnf:
+          type: boolean
+
+    BulkResultsResponse:
+      type: object
+      required: [resultsCreated, runnersCreated, runnersUpdated]
+      properties:
+        resultsCreated:
+          type: integer
+        runnersCreated:
+          type: integer
+        runnersUpdated:
+          type: integer
+        difficultyScore:
           type: number

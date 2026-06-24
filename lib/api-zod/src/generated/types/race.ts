@@ -8,6 +8,7 @@
 import type { RaceCategory } from './raceCategory';
 import type { RaceStatus } from './raceStatus';
 import type { RaceSurface } from './raceSurface';
+import type { RaceWeatherConditions } from './raceWeatherConditions';
 
 export interface Race {
   id: number;
@@ -27,5 +28,14 @@ export interface Race {
   status: RaceStatus;
   /** @nullable */
   finishersCount?: number | null;
+  /** @nullable */
+  weatherConditions?: RaceWeatherConditions;
+  /** @nullable */
+  technicalityRating?: number | null;
+  difficultyScore: number;
+  /** @nullable */
+  organizerId?: number | null;
+  /** @nullable */
+  organizerName?: string | null;
   createdAt?: string;
 }

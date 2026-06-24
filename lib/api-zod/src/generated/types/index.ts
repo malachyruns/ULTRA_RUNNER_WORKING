@@ -7,6 +7,9 @@
  */
 
 export * from './activityItem';
+export * from './bulkResultItem';
+export * from './bulkResultsInput';
+export * from './bulkResultsResponse';
 export * from './categoryBreakdown';
 export * from './getLeaderboardParams';
 export * from './getRecentActivityParams';
@@ -15,6 +18,16 @@ export * from './leaderboardEntry';
 export * from './listRacesParams';
 export * from './listRunnersParams';
 export * from './listUpcomingRacesParams';
+export * from './organizerLoginInput';
+export * from './organizerProfile';
+export * from './organizerRaceInput';
+export * from './organizerRaceInputCategory';
+export * from './organizerRaceInputSurface';
+export * from './organizerRaceInputWeatherConditions';
+export * from './organizerRaceUpdate';
+export * from './organizerRaceUpdateStatus';
+export * from './organizerRaceUpdateWeatherConditions';
+export * from './organizerRegisterInput';
 export * from './race';
 export * from './raceCategory';
 export * from './raceInput';
@@ -24,6 +37,7 @@ export * from './raceInputSurface';
 export * from './raceStatus';
 export * from './raceSurface';
 export * from './raceUpdate';
+export * from './raceWeatherConditions';
 export * from './result';
 export * from './resultInput';
 export * from './resultUpdate';

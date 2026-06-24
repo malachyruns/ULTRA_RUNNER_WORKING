@@ -21,6 +21,8 @@ import type {
 
 import type {
   ActivityItem,
+  BulkResultsInput,
+  BulkResultsResponse,
   GetLeaderboardParams,
   GetRecentActivityParams,
   HealthStatus,
@@ -28,6 +30,11 @@ import type {
   ListRacesParams,
   ListRunnersParams,
   ListUpcomingRacesParams,
+  OrganizerLoginInput,
+  OrganizerProfile,
+  OrganizerRaceInput,
+  OrganizerRaceUpdate,
+  OrganizerRegisterInput,
   Race,
   RaceInput,
   RaceUpdate,
@@ -1652,4 +1659,585 @@ export function useGetRecentActivity<TData = Awaited<ReturnType<typeof getRecent
 
 
 
+
+export const getPortalRegisterUrl = () => {
+
+
+
+
+  return `/api/portal/register`
+}
+
+/**
+ * @summary Register a new race organiser account
+ */
+export const portalRegister = async (organizerRegisterInput: OrganizerRegisterInput, options?: RequestInit): Promise<OrganizerProfile> => {
+
+  return customFetch<OrganizerProfile>(getPortalRegisterUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      organizerRegisterInput,)
+  }
+);}
+
+
+
+
+export const getPortalRegisterMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalRegister>>, TError,{data: BodyType<OrganizerRegisterInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof portalRegister>>, TError,{data: BodyType<OrganizerRegisterInput>}, TContext> => {
+
+const mutationKey = ['portalRegister'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof portalRegister>>, {data: BodyType<OrganizerRegisterInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  portalRegister(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PortalRegisterMutationResult = NonNullable<Awaited<ReturnType<typeof portalRegister>>>
+    export type PortalRegisterMutationBody = BodyType<OrganizerRegisterInput>
+    export type PortalRegisterMutationError = ErrorType<void>
+
+    /**
+ * @summary Register a new race organiser account
+ */
+export const usePortalRegister = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalRegister>>, TError,{data: BodyType<OrganizerRegisterInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof portalRegister>>,
+        TError,
+        {data: BodyType<OrganizerRegisterInput>},
+        TContext
+      > => {
+      return useMutation(getPortalRegisterMutationOptions(options));
+    }
+
+export const getPortalLoginUrl = () => {
+
+
+
+
+  return `/api/portal/login`
+}
+
+/**
+ * @summary Log in as a race organiser
+ */
+export const portalLogin = async (organizerLoginInput: OrganizerLoginInput, options?: RequestInit): Promise<OrganizerProfile> => {
+
+  return customFetch<OrganizerProfile>(getPortalLoginUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      organizerLoginInput,)
+  }
+);}
+
+
+
+
+export const getPortalLoginMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalLogin>>, TError,{data: BodyType<OrganizerLoginInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof portalLogin>>, TError,{data: BodyType<OrganizerLoginInput>}, TContext> => {
+
+const mutationKey = ['portalLogin'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof portalLogin>>, {data: BodyType<OrganizerLoginInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  portalLogin(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PortalLoginMutationResult = NonNullable<Awaited<ReturnType<typeof portalLogin>>>
+    export type PortalLoginMutationBody = BodyType<OrganizerLoginInput>
+    export type PortalLoginMutationError = ErrorType<void>
+
+    /**
+ * @summary Log in as a race organiser
+ */
+export const usePortalLogin = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalLogin>>, TError,{data: BodyType<OrganizerLoginInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof portalLogin>>,
+        TError,
+        {data: BodyType<OrganizerLoginInput>},
+        TContext
+      > => {
+      return useMutation(getPortalLoginMutationOptions(options));
+    }
+
+export const getPortalLogoutUrl = () => {
+
+
+
+
+  return `/api/portal/logout`
+}
+
+/**
+ * @summary Log out
+ */
+export const portalLogout = async ( options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getPortalLogoutUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPortalLogoutMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalLogout>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof portalLogout>>, TError,void, TContext> => {
+
+const mutationKey = ['portalLogout'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof portalLogout>>, void> = () => {
+
+
+          return  portalLogout(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PortalLogoutMutationResult = NonNullable<Awaited<ReturnType<typeof portalLogout>>>
+
+    export type PortalLogoutMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Log out
+ */
+export const usePortalLogout = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalLogout>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof portalLogout>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getPortalLogoutMutationOptions(options));
+    }
+
+export const getPortalMeUrl = () => {
+
+
+
+
+  return `/api/portal/me`
+}
+
+/**
+ * @summary Get current organiser session
+ */
+export const portalMe = async ( options?: RequestInit): Promise<OrganizerProfile> => {
+
+  return customFetch<OrganizerProfile>(getPortalMeUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPortalMeQueryKey = () => {
+    return [
+    `/api/portal/me`
+    ] as const;
+    }
+
+
+export const getPortalMeQueryOptions = <TData = Awaited<ReturnType<typeof portalMe>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof portalMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPortalMeQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof portalMe>>> = ({ signal }) => portalMe({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof portalMe>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type PortalMeQueryResult = NonNullable<Awaited<ReturnType<typeof portalMe>>>
+export type PortalMeQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get current organiser session
+ */
+
+export function usePortalMe<TData = Awaited<ReturnType<typeof portalMe>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof portalMe>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getPortalMeQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getPortalListRacesUrl = () => {
+
+
+
+
+  return `/api/portal/races`
+}
+
+/**
+ * @summary List races owned by the organiser
+ */
+export const portalListRaces = async ( options?: RequestInit): Promise<Race[]> => {
+
+  return customFetch<Race[]>(getPortalListRacesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPortalListRacesQueryKey = () => {
+    return [
+    `/api/portal/races`
+    ] as const;
+    }
+
+
+export const getPortalListRacesQueryOptions = <TData = Awaited<ReturnType<typeof portalListRaces>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof portalListRaces>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPortalListRacesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof portalListRaces>>> = ({ signal }) => portalListRaces({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof portalListRaces>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type PortalListRacesQueryResult = NonNullable<Awaited<ReturnType<typeof portalListRaces>>>
+export type PortalListRacesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List races owned by the organiser
+ */
+
+export function usePortalListRaces<TData = Awaited<ReturnType<typeof portalListRaces>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof portalListRaces>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getPortalListRacesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getPortalCreateRaceUrl = () => {
+
+
+
+
+  return `/api/portal/races`
+}
+
+/**
+ * @summary Create a race as an organiser
+ */
+export const portalCreateRace = async (organizerRaceInput: OrganizerRaceInput, options?: RequestInit): Promise<Race> => {
+
+  return customFetch<Race>(getPortalCreateRaceUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      organizerRaceInput,)
+  }
+);}
+
+
+
+
+export const getPortalCreateRaceMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalCreateRace>>, TError,{data: BodyType<OrganizerRaceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof portalCreateRace>>, TError,{data: BodyType<OrganizerRaceInput>}, TContext> => {
+
+const mutationKey = ['portalCreateRace'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof portalCreateRace>>, {data: BodyType<OrganizerRaceInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  portalCreateRace(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PortalCreateRaceMutationResult = NonNullable<Awaited<ReturnType<typeof portalCreateRace>>>
+    export type PortalCreateRaceMutationBody = BodyType<OrganizerRaceInput>
+    export type PortalCreateRaceMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a race as an organiser
+ */
+export const usePortalCreateRace = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalCreateRace>>, TError,{data: BodyType<OrganizerRaceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof portalCreateRace>>,
+        TError,
+        {data: BodyType<OrganizerRaceInput>},
+        TContext
+      > => {
+      return useMutation(getPortalCreateRaceMutationOptions(options));
+    }
+
+export const getPortalUpdateRaceUrl = (id: number,) => {
+
+
+
+
+  return `/api/portal/races/${id}`
+}
+
+/**
+ * @summary Update a race owned by the organiser
+ */
+export const portalUpdateRace = async (id: number,
+    organizerRaceUpdate: OrganizerRaceUpdate, options?: RequestInit): Promise<Race> => {
+
+  return customFetch<Race>(getPortalUpdateRaceUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      organizerRaceUpdate,)
+  }
+);}
+
+
+
+
+export const getPortalUpdateRaceMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalUpdateRace>>, TError,{id: number;data: BodyType<OrganizerRaceUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof portalUpdateRace>>, TError,{id: number;data: BodyType<OrganizerRaceUpdate>}, TContext> => {
+
+const mutationKey = ['portalUpdateRace'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof portalUpdateRace>>, {id: number;data: BodyType<OrganizerRaceUpdate>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  portalUpdateRace(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PortalUpdateRaceMutationResult = NonNullable<Awaited<ReturnType<typeof portalUpdateRace>>>
+    export type PortalUpdateRaceMutationBody = BodyType<OrganizerRaceUpdate>
+    export type PortalUpdateRaceMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a race owned by the organiser
+ */
+export const usePortalUpdateRace = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalUpdateRace>>, TError,{id: number;data: BodyType<OrganizerRaceUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof portalUpdateRace>>,
+        TError,
+        {id: number;data: BodyType<OrganizerRaceUpdate>},
+        TContext
+      > => {
+      return useMutation(getPortalUpdateRaceMutationOptions(options));
+    }
+
+export const getPortalSubmitResultsUrl = (id: number,) => {
+
+
+
+
+  return `/api/portal/races/${id}/results`
+}
+
+/**
+ * @summary Bulk submit finisher results for a race
+ */
+export const portalSubmitResults = async (id: number,
+    bulkResultsInput: BulkResultsInput, options?: RequestInit): Promise<BulkResultsResponse> => {
+
+  return customFetch<BulkResultsResponse>(getPortalSubmitResultsUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      bulkResultsInput,)
+  }
+);}
+
+
+
+
+export const getPortalSubmitResultsMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalSubmitResults>>, TError,{id: number;data: BodyType<BulkResultsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof portalSubmitResults>>, TError,{id: number;data: BodyType<BulkResultsInput>}, TContext> => {
+
+const mutationKey = ['portalSubmitResults'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof portalSubmitResults>>, {id: number;data: BodyType<BulkResultsInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  portalSubmitResults(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PortalSubmitResultsMutationResult = NonNullable<Awaited<ReturnType<typeof portalSubmitResults>>>
+    export type PortalSubmitResultsMutationBody = BodyType<BulkResultsInput>
+    export type PortalSubmitResultsMutationError = ErrorType<void>
+
+    /**
+ * @summary Bulk submit finisher results for a race
+ */
+export const usePortalSubmitResults = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalSubmitResults>>, TError,{id: number;data: BodyType<BulkResultsInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof portalSubmitResults>>,
+        TError,
+        {id: number;data: BodyType<BulkResultsInput>},
+        TContext
+      > => {
+      return useMutation(getPortalSubmitResultsMutationOptions(options));
+    }
 

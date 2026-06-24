@@ -1,8 +1,10 @@
 import { Link, useLocation } from "wouter";
-import { Activity, Trophy, Users, Calendar, BarChart3, Settings } from "lucide-react";
+import { Activity, Trophy, Users, Calendar, BarChart3, Settings, UserCircle } from "lucide-react";
+import { usePortalMe, getPortalMeQueryKey } from "@workspace/api-client-react";
 
 export function Navbar() {
   const [location] = useLocation();
+  const { data: organizer } = usePortalMe({ query: { retry: false, queryKey: getPortalMeQueryKey() } });
 
   const navItems = [
     { href: "/", label: "Dashboard", icon: BarChart3 },
@@ -37,6 +39,16 @@ export function Navbar() {
                 </Link>
               ))}
             </div>
+          </div>
+          
+          <div className="flex items-center">
+            <Link
+              href={organizer ? "/portal/dashboard" : "/portal/login"}
+              className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors border border-border/50 rounded-full px-3 py-1.5 hover:border-primary/30"
+            >
+              <UserCircle className="h-4 w-4" />
+              {organizer ? "Dashboard" : "Organiser Login"}
+            </Link>
           </div>
         </div>
       </div>

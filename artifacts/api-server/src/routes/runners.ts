@@ -183,6 +183,11 @@ function normalizeRace(r: typeof racesTable.$inferSelect) {
     description: r.description ?? null,
     status: r.status,
     finishersCount: r.finishersCount ?? null,
+    weatherConditions: r.weatherConditions ?? null,
+    technicalityRating: r.technicalityRating ?? null,
+    difficultyScore: parseFloat(r.difficultyScore),
+    organizerId: r.organizerId ?? null,
+    organizerName: null as string | null,
     createdAt: r.createdAt.toISOString(),
   };
 }

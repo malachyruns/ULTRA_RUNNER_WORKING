@@ -118,6 +118,20 @@ export const RaceStatus = {
   completed: 'completed',
 } as const;
 
+/**
+ * @nullable
+ */
+export type RaceWeatherConditions = typeof RaceWeatherConditions[keyof typeof RaceWeatherConditions] | null;
+
+
+export const RaceWeatherConditions = {
+  clear: 'clear',
+  rain: 'rain',
+  heat: 'heat',
+  snow: 'snow',
+  storm: 'storm',
+} as const;
+
 export interface Race {
   id: number;
   name: string;
@@ -136,6 +150,15 @@ export interface Race {
   status: RaceStatus;
   /** @nullable */
   finishersCount?: number | null;
+  /** @nullable */
+  weatherConditions?: RaceWeatherConditions;
+  /** @nullable */
+  technicalityRating?: number | null;
+  difficultyScore: number;
+  /** @nullable */
+  organizerId?: number | null;
+  /** @nullable */
+  organizerName?: string | null;
   createdAt?: string;
 }
 
@@ -304,6 +327,157 @@ export interface ActivityItem {
   finishTimeSeconds?: number | null;
   dnf?: boolean;
   points: number;
+}
+
+export interface OrganizerProfile {
+  id: number;
+  name: string;
+  email: string;
+  organizationName: string;
+  /** @nullable */
+  website?: string | null;
+  isVerified?: boolean;
+  createdAt?: string;
+}
+
+export interface OrganizerRegisterInput {
+  /** @minLength 1 */
+  name: string;
+  email: string;
+  /** @minLength 8 */
+  password: string;
+  /** @minLength 1 */
+  organizationName: string;
+  /** @nullable */
+  website?: string | null;
+}
+
+export interface OrganizerLoginInput {
+  email: string;
+  password: string;
+}
+
+export type OrganizerRaceInputCategory = typeof OrganizerRaceInputCategory[keyof typeof OrganizerRaceInputCategory];
+
+
+export const OrganizerRaceInputCategory = {
+  '50k': '50k',
+  '100k': '100k',
+  '50mi': '50mi',
+  '100mi': '100mi',
+  '200mi': '200mi',
+  other: 'other',
+} as const;
+
+export type OrganizerRaceInputSurface = typeof OrganizerRaceInputSurface[keyof typeof OrganizerRaceInputSurface];
+
+
+export const OrganizerRaceInputSurface = {
+  trail: 'trail',
+  road: 'road',
+  mountain: 'mountain',
+  mixed: 'mixed',
+} as const;
+
+/**
+ * @nullable
+ */
+export type OrganizerRaceInputWeatherConditions = typeof OrganizerRaceInputWeatherConditions[keyof typeof OrganizerRaceInputWeatherConditions] | null;
+
+
+export const OrganizerRaceInputWeatherConditions = {
+  clear: 'clear',
+  rain: 'rain',
+  heat: 'heat',
+  snow: 'snow',
+  storm: 'storm',
+} as const;
+
+export interface OrganizerRaceInput {
+  /** @minLength 1 */
+  name: string;
+  location: string;
+  country: string;
+  /** @nullable */
+  countryCode?: string | null;
+  date: string;
+  distanceKm: number;
+  category: OrganizerRaceInputCategory;
+  surface: OrganizerRaceInputSurface;
+  /** @nullable */
+  totalElevationM?: number | null;
+  /** @nullable */
+  description?: string | null;
+  /** @nullable */
+  weatherConditions?: OrganizerRaceInputWeatherConditions;
+  /** @nullable */
+  technicalityRating?: number | null;
+}
+
+export type OrganizerRaceUpdateStatus = typeof OrganizerRaceUpdateStatus[keyof typeof OrganizerRaceUpdateStatus];
+
+
+export const OrganizerRaceUpdateStatus = {
+  upcoming: 'upcoming',
+  results_pending: 'results_pending',
+  completed: 'completed',
+} as const;
+
+/**
+ * @nullable
+ */
+export type OrganizerRaceUpdateWeatherConditions = typeof OrganizerRaceUpdateWeatherConditions[keyof typeof OrganizerRaceUpdateWeatherConditions] | null;
+
+
+export const OrganizerRaceUpdateWeatherConditions = {
+  clear: 'clear',
+  rain: 'rain',
+  heat: 'heat',
+  snow: 'snow',
+  storm: 'storm',
+} as const;
+
+export interface OrganizerRaceUpdate {
+  name?: string;
+  location?: string;
+  country?: string;
+  date?: string;
+  distanceKm?: number;
+  category?: string;
+  surface?: string;
+  /** @nullable */
+  totalElevationM?: number | null;
+  /** @nullable */
+  description?: string | null;
+  status?: OrganizerRaceUpdateStatus;
+  /** @nullable */
+  weatherConditions?: OrganizerRaceUpdateWeatherConditions;
+  /** @nullable */
+  technicalityRating?: number | null;
+}
+
+export interface BulkResultItem {
+  runnerName: string;
+  /** @nullable */
+  country?: string | null;
+  /** @nullable */
+  gender?: string | null;
+  /** @nullable */
+  position: number | null;
+  /** @nullable */
+  finishTimeSeconds?: number | null;
+  dnf?: boolean;
+}
+
+export interface BulkResultsInput {
+  results: BulkResultItem[];
+}
+
+export interface BulkResultsResponse {
+  resultsCreated: number;
+  runnersCreated: number;
+  runnersUpdated: number;
+  difficultyScore?: number;
 }
 
 export type ListRunnersParams = {

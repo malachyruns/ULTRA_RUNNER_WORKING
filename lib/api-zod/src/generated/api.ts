@@ -180,6 +180,11 @@ export const GetRunnerResultsResponseItem = zod.object({
   "description": zod.string().nullish(),
   "status": zod.enum(['upcoming', 'results_pending', 'completed']),
   "finishersCount": zod.number().nullish(),
+  "weatherConditions": zod.union([zod.literal('clear'),zod.literal('rain'),zod.literal('heat'),zod.literal('snow'),zod.literal('storm'),zod.literal(null)]).nullish(),
+  "technicalityRating": zod.number().nullish(),
+  "difficultyScore": zod.number(),
+  "organizerId": zod.number().nullish(),
+  "organizerName": zod.string().nullish(),
   "createdAt": zod.string().optional()
 })
 })
@@ -236,6 +241,11 @@ export const ListRacesResponseItem = zod.object({
   "description": zod.string().nullish(),
   "status": zod.enum(['upcoming', 'results_pending', 'completed']),
   "finishersCount": zod.number().nullish(),
+  "weatherConditions": zod.union([zod.literal('clear'),zod.literal('rain'),zod.literal('heat'),zod.literal('snow'),zod.literal('storm'),zod.literal(null)]).nullish(),
+  "technicalityRating": zod.number().nullish(),
+  "difficultyScore": zod.number(),
+  "organizerId": zod.number().nullish(),
+  "organizerName": zod.string().nullish(),
   "createdAt": zod.string().optional()
 })
 export const ListRacesResponse = zod.array(ListRacesResponseItem)
@@ -283,6 +293,11 @@ export const ListUpcomingRacesResponseItem = zod.object({
   "description": zod.string().nullish(),
   "status": zod.enum(['upcoming', 'results_pending', 'completed']),
   "finishersCount": zod.number().nullish(),
+  "weatherConditions": zod.union([zod.literal('clear'),zod.literal('rain'),zod.literal('heat'),zod.literal('snow'),zod.literal('storm'),zod.literal(null)]).nullish(),
+  "technicalityRating": zod.number().nullish(),
+  "difficultyScore": zod.number(),
+  "organizerId": zod.number().nullish(),
+  "organizerName": zod.string().nullish(),
   "createdAt": zod.string().optional()
 })
 export const ListUpcomingRacesResponse = zod.array(ListUpcomingRacesResponseItem)
@@ -309,6 +324,11 @@ export const GetRaceResponse = zod.object({
   "description": zod.string().nullish(),
   "status": zod.enum(['upcoming', 'results_pending', 'completed']),
   "finishersCount": zod.number().nullish(),
+  "weatherConditions": zod.union([zod.literal('clear'),zod.literal('rain'),zod.literal('heat'),zod.literal('snow'),zod.literal('storm'),zod.literal(null)]).nullish(),
+  "technicalityRating": zod.number().nullish(),
+  "difficultyScore": zod.number(),
+  "organizerId": zod.number().nullish(),
+  "organizerName": zod.string().nullish(),
   "createdAt": zod.string().optional()
 })
 
@@ -347,6 +367,11 @@ export const UpdateRaceResponse = zod.object({
   "description": zod.string().nullish(),
   "status": zod.enum(['upcoming', 'results_pending', 'completed']),
   "finishersCount": zod.number().nullish(),
+  "weatherConditions": zod.union([zod.literal('clear'),zod.literal('rain'),zod.literal('heat'),zod.literal('snow'),zod.literal('storm'),zod.literal(null)]).nullish(),
+  "technicalityRating": zod.number().nullish(),
+  "difficultyScore": zod.number(),
+  "organizerId": zod.number().nullish(),
+  "organizerName": zod.string().nullish(),
   "createdAt": zod.string().optional()
 })
 
@@ -486,5 +511,176 @@ export const GetRecentActivityResponseItem = zod.object({
   "points": zod.number()
 })
 export const GetRecentActivityResponse = zod.array(GetRecentActivityResponseItem)
+
+
+/**
+ * @summary Register a new race organiser account
+ */
+
+export const portalRegisterBodyPasswordMin = 8;
+
+
+
+
+export const PortalRegisterBody = zod.object({
+  "name": zod.string().min(1),
+  "email": zod.string(),
+  "password": zod.string().min(portalRegisterBodyPasswordMin),
+  "organizationName": zod.string().min(1),
+  "website": zod.string().nullish()
+})
+
+
+/**
+ * @summary Log in as a race organiser
+ */
+export const PortalLoginBody = zod.object({
+  "email": zod.string(),
+  "password": zod.string()
+})
+
+export const PortalLoginResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "organizationName": zod.string(),
+  "website": zod.string().nullish(),
+  "isVerified": zod.boolean().optional(),
+  "createdAt": zod.string().optional()
+})
+
+
+/**
+ * @summary Get current organiser session
+ */
+export const PortalMeResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "organizationName": zod.string(),
+  "website": zod.string().nullish(),
+  "isVerified": zod.boolean().optional(),
+  "createdAt": zod.string().optional()
+})
+
+
+/**
+ * @summary List races owned by the organiser
+ */
+export const PortalListRacesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "location": zod.string(),
+  "country": zod.string(),
+  "countryCode": zod.string().nullish(),
+  "date": zod.string(),
+  "distanceKm": zod.number(),
+  "category": zod.enum(['50k', '100k', '50mi', '100mi', '200mi', 'other']),
+  "surface": zod.enum(['trail', 'road', 'mountain', 'mixed']),
+  "totalElevationM": zod.number().nullish(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['upcoming', 'results_pending', 'completed']),
+  "finishersCount": zod.number().nullish(),
+  "weatherConditions": zod.union([zod.literal('clear'),zod.literal('rain'),zod.literal('heat'),zod.literal('snow'),zod.literal('storm'),zod.literal(null)]).nullish(),
+  "technicalityRating": zod.number().nullish(),
+  "difficultyScore": zod.number(),
+  "organizerId": zod.number().nullish(),
+  "organizerName": zod.string().nullish(),
+  "createdAt": zod.string().optional()
+})
+export const PortalListRacesResponse = zod.array(PortalListRacesResponseItem)
+
+
+/**
+ * @summary Create a race as an organiser
+ */
+
+
+
+export const PortalCreateRaceBody = zod.object({
+  "name": zod.string().min(1),
+  "location": zod.string(),
+  "country": zod.string(),
+  "countryCode": zod.string().nullish(),
+  "date": zod.string(),
+  "distanceKm": zod.number(),
+  "category": zod.enum(['50k', '100k', '50mi', '100mi', '200mi', 'other']),
+  "surface": zod.enum(['trail', 'road', 'mountain', 'mixed']),
+  "totalElevationM": zod.number().nullish(),
+  "description": zod.string().nullish(),
+  "weatherConditions": zod.union([zod.literal('clear'),zod.literal('rain'),zod.literal('heat'),zod.literal('snow'),zod.literal('storm'),zod.literal(null)]).nullish(),
+  "technicalityRating": zod.number().nullish()
+})
+
+
+/**
+ * @summary Update a race owned by the organiser
+ */
+export const PortalUpdateRaceParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const PortalUpdateRaceBody = zod.object({
+  "name": zod.string().optional(),
+  "location": zod.string().optional(),
+  "country": zod.string().optional(),
+  "date": zod.string().optional(),
+  "distanceKm": zod.number().optional(),
+  "category": zod.string().optional(),
+  "surface": zod.string().optional(),
+  "totalElevationM": zod.number().nullish(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['upcoming', 'results_pending', 'completed']).optional(),
+  "weatherConditions": zod.union([zod.literal('clear'),zod.literal('rain'),zod.literal('heat'),zod.literal('snow'),zod.literal('storm'),zod.literal(null)]).nullish(),
+  "technicalityRating": zod.number().nullish()
+})
+
+export const PortalUpdateRaceResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "location": zod.string(),
+  "country": zod.string(),
+  "countryCode": zod.string().nullish(),
+  "date": zod.string(),
+  "distanceKm": zod.number(),
+  "category": zod.enum(['50k', '100k', '50mi', '100mi', '200mi', 'other']),
+  "surface": zod.enum(['trail', 'road', 'mountain', 'mixed']),
+  "totalElevationM": zod.number().nullish(),
+  "description": zod.string().nullish(),
+  "status": zod.enum(['upcoming', 'results_pending', 'completed']),
+  "finishersCount": zod.number().nullish(),
+  "weatherConditions": zod.union([zod.literal('clear'),zod.literal('rain'),zod.literal('heat'),zod.literal('snow'),zod.literal('storm'),zod.literal(null)]).nullish(),
+  "technicalityRating": zod.number().nullish(),
+  "difficultyScore": zod.number(),
+  "organizerId": zod.number().nullish(),
+  "organizerName": zod.string().nullish(),
+  "createdAt": zod.string().optional()
+})
+
+
+/**
+ * @summary Bulk submit finisher results for a race
+ */
+export const PortalSubmitResultsParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const PortalSubmitResultsBody = zod.object({
+  "results": zod.array(zod.object({
+  "runnerName": zod.string(),
+  "country": zod.string().nullish(),
+  "gender": zod.string().nullish(),
+  "position": zod.number().nullable(),
+  "finishTimeSeconds": zod.number().nullish(),
+  "dnf": zod.boolean().optional()
+}))
+})
+
+export const PortalSubmitResultsResponse = zod.object({
+  "resultsCreated": zod.number(),
+  "runnersCreated": zod.number(),
+  "runnersUpdated": zod.number(),
+  "difficultyScore": zod.number().optional()
+})
 
 

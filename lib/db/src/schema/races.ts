@@ -1,6 +1,7 @@
 import { pgTable, serial, text, integer, numeric, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { organizersTable } from "./organizers";
 
 export const racesTable = pgTable("races", {
   id: serial("id").primaryKey(),
@@ -16,6 +17,10 @@ export const racesTable = pgTable("races", {
   description: text("description"),
   status: text("status").notNull().default("upcoming"),
   finishersCount: integer("finishers_count"),
+  weatherConditions: text("weather_conditions"),
+  technicalityRating: integer("technicality_rating"),
+  difficultyScore: numeric("difficulty_score", { precision: 6, scale: 3 }).notNull().default("1.000"),
+  organizerId: integer("organizer_id").references(() => organizersTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
