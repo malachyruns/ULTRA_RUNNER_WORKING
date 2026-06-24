@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "UltraRank"
+version = "1.0.0"
+id = "artifacts/ultrarank"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24964
+
+[services.development]
+run = "pnpm --filter @workspace/ultrarank run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/ultrarank", "run", "build" ]
+publicDir = "artifacts/ultrarank/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24964"
+BASE_PATH = "/"

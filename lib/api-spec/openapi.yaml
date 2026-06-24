@@ -1,22 +1,29 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: UltraRank API - ultrarunner rankings and race results
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: runners
+    description: Runner profiles and rankings
+  - name: races
+    description: Race events
+  - name: results
+    description: Race results
+  - name: stats
+    description: Aggregate statistics
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +31,434 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /runners:
+    get:
+      operationId: listRunners
+      tags: [runners]
+      summary: List all runners with optional filters
+      parameters:
+        - name: gender
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: country
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: category
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: search
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: limit
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: offset
+          in: query
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: List of runners
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Runner"
+    post:
+      operationId: createRunner
+      tags: [runners]
+      summary: Create a new runner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunnerInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Runner"
+
+  /runners/leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [runners]
+      summary: Global leaderboard sorted by rating
+      parameters:
+        - name: gender
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: category
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: limit
+          in: query
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: Ranked list of runners
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeaderboardEntry"
+
+  /runners/{id}:
+    get:
+      operationId: getRunner
+      tags: [runners]
+      summary: Get a runner by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Runner profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Runner"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateRunner
+      tags: [runners]
+      summary: Update a runner
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RunnerUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Runner"
+    delete:
+      operationId: deleteRunner
+      tags: [runners]
+      summary: Delete a runner
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /runners/{id}/results:
+    get:
+      operationId: getRunnerResults
+      tags: [runners]
+      summary: Get all race results for a runner
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Runner's results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResultWithRace"
+
+  /runners/{id}/stats:
+    get:
+      operationId: getRunnerStats
+      tags: [runners]
+      summary: Get aggregate stats for a runner
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Runner stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunnerStats"
+
+  /races:
+    get:
+      operationId: listRaces
+      tags: [races]
+      summary: List races
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: category
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: country
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: search
+          in: query
+          schema:
+            type: ["string", "null"]
+        - name: limit
+          in: query
+          schema:
+            type: ["integer", "null"]
+        - name: offset
+          in: query
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: List of races
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Race"
+    post:
+      operationId: createRace
+      tags: [races]
+      summary: Create a new race
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RaceInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Race"
+
+  /races/upcoming:
+    get:
+      operationId: listUpcomingRaces
+      tags: [races]
+      summary: List upcoming races sorted by date
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: Upcoming races
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Race"
+
+  /races/{id}:
+    get:
+      operationId: getRace
+      tags: [races]
+      summary: Get a race by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Race details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Race"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateRace
+      tags: [races]
+      summary: Update a race
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RaceUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Race"
+    delete:
+      operationId: deleteRace
+      tags: [races]
+      summary: Delete a race
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /races/{id}/results:
+    get:
+      operationId: getRaceResults
+      tags: [races]
+      summary: Get all results for a race
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Race results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResultWithRunner"
+
+  /results:
+    post:
+      operationId: createResult
+      tags: [results]
+      summary: Submit a race result
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResultInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Result"
+
+  /results/{id}:
+    patch:
+      operationId: updateResult
+      tags: [results]
+      summary: Update a result
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResultUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Result"
+    delete:
+      operationId: deleteResult
+      tags: [results]
+      summary: Delete a result
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /stats/summary:
+    get:
+      operationId: getSiteSummary
+      tags: [stats]
+      summary: Global site stats
+      responses:
+        "200":
+          description: Summary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SiteSummary"
+
+  /stats/recent-activity:
+    get:
+      operationId: getRecentActivity
+      tags: [stats]
+      summary: Recent race results across the platform
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: ["integer", "null"]
+      responses:
+        "200":
+          description: Recent activity feed
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityItem"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +469,353 @@ components:
       required:
         - status
 
+    Runner:
+      type: object
+      required: [id, name, country, gender, rating, rank, totalRaces]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        country:
+          type: string
+        countryCode:
+          type: ["string", "null"]
+        gender:
+          type: string
+          enum: [M, F, X]
+        age:
+          type: ["integer", "null"]
+        bio:
+          type: ["string", "null"]
+        rating:
+          type: number
+        rank:
+          type: integer
+        totalRaces:
+          type: integer
+        totalDistanceKm:
+          type: number
+        bestFinish:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+
+    RunnerInput:
+      type: object
+      required: [name, country, gender]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        country:
+          type: string
+        countryCode:
+          type: ["string", "null"]
+        gender:
+          type: string
+          enum: [M, F, X]
+        age:
+          type: ["integer", "null"]
+        bio:
+          type: ["string", "null"]
+
+    RunnerUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        country:
+          type: string
+        countryCode:
+          type: ["string", "null"]
+        gender:
+          type: string
+        age:
+          type: ["integer", "null"]
+        bio:
+          type: ["string", "null"]
+
+    LeaderboardEntry:
+      type: object
+      required: [id, name, country, gender, rating, rank, totalRaces, ratingChange]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        country:
+          type: string
+        countryCode:
+          type: ["string", "null"]
+        gender:
+          type: string
+        rating:
+          type: number
+        rank:
+          type: integer
+        ratingChange:
+          type: number
+        totalRaces:
+          type: integer
+        bestFinish:
+          type: ["integer", "null"]
+
+    Race:
+      type: object
+      required: [id, name, location, country, date, distanceKm, category, surface, status]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        location:
+          type: string
+        country:
+          type: string
+        countryCode:
+          type: ["string", "null"]
+        date:
+          type: string
+        distanceKm:
+          type: number
+        category:
+          type: string
+          enum: [50k, 100k, 50mi, 100mi, 200mi, other]
+        surface:
+          type: string
+          enum: [trail, road, mountain, mixed]
+        totalElevationM:
+          type: ["integer", "null"]
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [upcoming, results_pending, completed]
+        finishersCount:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+
+    RaceInput:
+      type: object
+      required: [name, location, country, date, distanceKm, category, surface]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        location:
+          type: string
+        country:
+          type: string
+        countryCode:
+          type: ["string", "null"]
+        date:
+          type: string
+        distanceKm:
+          type: number
+        category:
+          type: string
+          enum: [50k, 100k, 50mi, 100mi, 200mi, other]
+        surface:
+          type: string
+          enum: [trail, road, mountain, mixed]
+        totalElevationM:
+          type: ["integer", "null"]
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [upcoming, results_pending, completed]
+
+    RaceUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        location:
+          type: string
+        country:
+          type: string
+        date:
+          type: string
+        distanceKm:
+          type: number
+        category:
+          type: string
+        surface:
+          type: string
+        totalElevationM:
+          type: ["integer", "null"]
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+
+    Result:
+      type: object
+      required: [id, runnerId, raceId, position, points]
+      properties:
+        id:
+          type: integer
+        runnerId:
+          type: integer
+        raceId:
+          type: integer
+        position:
+          type: ["integer", "null"]
+        finishTimeSeconds:
+          type: ["integer", "null"]
+        dnf:
+          type: boolean
+        points:
+          type: number
+        createdAt:
+          type: string
+
+    ResultInput:
+      type: object
+      required: [runnerId, raceId]
+      properties:
+        runnerId:
+          type: integer
+        raceId:
+          type: integer
+        position:
+          type: ["integer", "null"]
+        finishTimeSeconds:
+          type: ["integer", "null"]
+        dnf:
+          type: boolean
+
+    ResultUpdate:
+      type: object
+      properties:
+        position:
+          type: ["integer", "null"]
+        finishTimeSeconds:
+          type: ["integer", "null"]
+        dnf:
+          type: boolean
+
+    ResultWithRace:
+      type: object
+      required: [id, runnerId, raceId, points, race]
+      properties:
+        id:
+          type: integer
+        runnerId:
+          type: integer
+        raceId:
+          type: integer
+        position:
+          type: ["integer", "null"]
+        finishTimeSeconds:
+          type: ["integer", "null"]
+        dnf:
+          type: boolean
+        points:
+          type: number
+        race:
+          $ref: "#/components/schemas/Race"
+
+    ResultWithRunner:
+      type: object
+      required: [id, runnerId, raceId, points, runner]
+      properties:
+        id:
+          type: integer
+        runnerId:
+          type: integer
+        raceId:
+          type: integer
+        position:
+          type: ["integer", "null"]
+        finishTimeSeconds:
+          type: ["integer", "null"]
+        dnf:
+          type: boolean
+        points:
+          type: number
+        runner:
+          $ref: "#/components/schemas/Runner"
+
+    RunnerStats:
+      type: object
+      required: [runnerId, totalRaces, totalFinishes, totalDnfs, totalDistanceKm, avgPosition, bestPosition, totalPoints]
+      properties:
+        runnerId:
+          type: integer
+        totalRaces:
+          type: integer
+        totalFinishes:
+          type: integer
+        totalDnfs:
+          type: integer
+        totalDistanceKm:
+          type: number
+        avgPosition:
+          type: ["number", "null"]
+        bestPosition:
+          type: ["integer", "null"]
+        totalPoints:
+          type: number
+        byCategory:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoryBreakdown"
+
+    CategoryBreakdown:
+      type: object
+      required: [category, races, avgPosition]
+      properties:
+        category:
+          type: string
+        races:
+          type: integer
+        avgPosition:
+          type: ["number", "null"]
+
+    SiteSummary:
+      type: object
+      required: [totalRunners, totalRaces, totalResults, totalCountries, topRatedRunner]
+      properties:
+        totalRunners:
+          type: integer
+        totalRaces:
+          type: integer
+        totalResults:
+          type: integer
+        totalCountries:
+          type: integer
+        topRatedRunner:
+          $ref: "#/components/schemas/Runner"
+
+    ActivityItem:
+      type: object
+      required: [id, runnerId, raceId, runnerName, raceName, raceDate, position, points]
+      properties:
+        id:
+          type: integer
+        runnerId:
+          type: integer
+        raceId:
+          type: integer
+        runnerName:
+          type: string
+        runnerCountry:
+          type: string
+        raceName:
+          type: string
+        raceDate:
+          type: string
+        raceCategory:
+          type: string
+        position:
+          type: ["integer", "null"]
+        finishTimeSeconds:
+          type: ["integer", "null"]
+        dnf:
+          type: boolean
+        points:
+          type: number
