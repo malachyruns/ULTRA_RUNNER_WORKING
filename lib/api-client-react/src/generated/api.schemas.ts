@@ -521,6 +521,32 @@ export interface ScrapeImportResponse {
   raceName?: string | null;
 }
 
+export type SearchCandidateConfidence = typeof SearchCandidateConfidence[keyof typeof SearchCandidateConfidence];
+
+
+export const SearchCandidateConfidence = {
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+} as const;
+
+export interface SearchCandidate {
+  url: string;
+  source: string;
+  title: string;
+  /** @nullable */
+  date?: string | null;
+  /** @nullable */
+  finishers?: number | null;
+  confidence: SearchCandidateConfidence;
+}
+
+export interface AutoSearchResponse {
+  raceName: string;
+  raceDate: string;
+  candidates: SearchCandidate[];
+}
+
 export type ListRunnersParams = {
 /**
  * @nullable

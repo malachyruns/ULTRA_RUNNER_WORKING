@@ -663,6 +663,54 @@ paths:
         "422":
           description: Scrape failed
 
+  /portal/races/{id}/auto-search:
+    post:
+      operationId: portalAutoSearch
+      tags: [portal]
+      summary: Search the web for results pages matching a race's name and date
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of candidate result pages found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutoSearchResponse"
+        "403":
+          description: Not your race
+        "404":
+          description: Race not found
+
+  /portal/races/{id}/auto-import:
+    post:
+      operationId: portalAutoImport
+      tags: [portal]
+      summary: Auto-search and import the best-confidence results for a race
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Import successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScrapeImportResponse"
+        "403":
+          description: Not your race
+        "404":
+          description: Race not found
+        "422":
+          description: No confident results found
+
 components:
   schemas:
     HealthStatus:
@@ -1244,3 +1292,34 @@ components:
           type: ["string", "null"]
         raceName:
           type: ["string", "null"]
+
+    SearchCandidate:
+      type: object
+      required: [url, source, title, confidence]
+      properties:
+        url:
+          type: string
+        source:
+          type: string
+        title:
+          type: string
+        date:
+          type: ["string", "null"]
+        finishers:
+          type: ["integer", "null"]
+        confidence:
+          type: string
+          enum: [high, medium, low]
+
+    AutoSearchResponse:
+      type: object
+      required: [candidates, raceName, raceDate]
+      properties:
+        raceName:
+          type: string
+        raceDate:
+          type: string
+        candidates:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchCandidate"

@@ -730,3 +730,41 @@ export const PortalScrapeImportResponse = zod.object({
 })
 
 
+/**
+ * @summary Search the web for results pages matching a race's name and date
+ */
+export const PortalAutoSearchParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const PortalAutoSearchResponse = zod.object({
+  "raceName": zod.string(),
+  "raceDate": zod.string(),
+  "candidates": zod.array(zod.object({
+  "url": zod.string(),
+  "source": zod.string(),
+  "title": zod.string(),
+  "date": zod.string().nullish(),
+  "finishers": zod.number().nullish(),
+  "confidence": zod.enum(['high', 'medium', 'low'])
+}))
+})
+
+
+/**
+ * @summary Auto-search and import the best-confidence results for a race
+ */
+export const PortalAutoImportParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const PortalAutoImportResponse = zod.object({
+  "resultsCreated": zod.number(),
+  "runnersCreated": zod.number(),
+  "runnersUpdated": zod.number(),
+  "difficultyScore": zod.number(),
+  "source": zod.string().nullish(),
+  "raceName": zod.string().nullish()
+})
+
+

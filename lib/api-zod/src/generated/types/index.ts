@@ -7,6 +7,7 @@
  */
 
 export * from './activityItem';
+export * from './autoSearchResponse';
 export * from './bulkResultItem';
 export * from './bulkResultsInput';
 export * from './bulkResultsResponse';
@@ -53,4 +54,6 @@ export * from './scrapedResultItem';
 export * from './scrapeImportResponse';
 export * from './scrapeInput';
 export * from './scrapePreview';
+export * from './searchCandidate';
+export * from './searchCandidateConfidence';
 export * from './siteSummary';

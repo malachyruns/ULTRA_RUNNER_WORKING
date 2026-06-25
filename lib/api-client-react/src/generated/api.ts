@@ -21,6 +21,7 @@ import type {
 
 import type {
   ActivityItem,
+  AutoSearchResponse,
   BulkResultsInput,
   BulkResultsResponse,
   GetLeaderboardParams,
@@ -2385,5 +2386,145 @@ export const usePortalScrapeImport = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getPortalScrapeImportMutationOptions(options));
+    }
+
+export const getPortalAutoSearchUrl = (id: number,) => {
+
+
+
+
+  return `/api/portal/races/${id}/auto-search`
+}
+
+/**
+ * @summary Search the web for results pages matching a race's name and date
+ */
+export const portalAutoSearch = async (id: number, options?: RequestInit): Promise<AutoSearchResponse> => {
+
+  return customFetch<AutoSearchResponse>(getPortalAutoSearchUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPortalAutoSearchMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalAutoSearch>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof portalAutoSearch>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['portalAutoSearch'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof portalAutoSearch>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  portalAutoSearch(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PortalAutoSearchMutationResult = NonNullable<Awaited<ReturnType<typeof portalAutoSearch>>>
+
+    export type PortalAutoSearchMutationError = ErrorType<void>
+
+    /**
+ * @summary Search the web for results pages matching a race's name and date
+ */
+export const usePortalAutoSearch = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalAutoSearch>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof portalAutoSearch>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getPortalAutoSearchMutationOptions(options));
+    }
+
+export const getPortalAutoImportUrl = (id: number,) => {
+
+
+
+
+  return `/api/portal/races/${id}/auto-import`
+}
+
+/**
+ * @summary Auto-search and import the best-confidence results for a race
+ */
+export const portalAutoImport = async (id: number, options?: RequestInit): Promise<ScrapeImportResponse> => {
+
+  return customFetch<ScrapeImportResponse>(getPortalAutoImportUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPortalAutoImportMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalAutoImport>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof portalAutoImport>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['portalAutoImport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof portalAutoImport>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  portalAutoImport(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PortalAutoImportMutationResult = NonNullable<Awaited<ReturnType<typeof portalAutoImport>>>
+
+    export type PortalAutoImportMutationError = ErrorType<void>
+
+    /**
+ * @summary Auto-search and import the best-confidence results for a race
+ */
+export const usePortalAutoImport = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalAutoImport>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof portalAutoImport>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getPortalAutoImportMutationOptions(options));
     }
 
