@@ -1,0 +1,28 @@
+Please build an automated data-integration pipeline for my ultra-endurance ranking platform using Python and Flask. I need you to create a web scraper file, connect it to our database, and build a hidden admin route to trigger it. 
+
+Please write and configure the following components across our files:
+
+1. SCRAPER SCRIPT (`scrapers/race_scraper.py`):
+- Create a web scraper using BeautifulSoup.
+- It must take a target race results URL as an input.
+- It needs to parse the HTML to extract: Runner Name, Gender, Birth Year (or Age Category), Finish Time (convert this to total seconds), and Race Name.
+- Include mock data as a fallback so I can test the loop even if the live website blocks the request.
+
+2. PIPELINE LOGIC (`engine/pipeline.py`):
+- Create a function called 'process_race_data(url)'.
+- It must open a connection to our PostgreSQL database.
+- It must loop through the scraped runners and check if the runner already exists (match by Name + Birth Year/Age Category) to prevent duplicate profiles.
+- If they exist: Update their overall 'current_endurance_level' in the 'runners' table.
+- If they do not exist: Insert a new row into the 'runners' table and grab their new 'runner_id'.
+- Crucially, it must log this specific race finish by inserting a row into the 'race_results' table tied to that 'runner_id'.
+
+3. THE ALGORITHM PLACEHOLDER:
+- Inside the pipeline loop, pass the runner's finish time into a simple math function that calculates a score (e.g., Winner's Time / Runner's Time * 1000) so we have a numerical level to save.
+
+4. FLASK ROUTE & DASHBOARD UI (`main.py` & `templates/admin.html`):
+- Create a protected route at '/admin-panel'.
+- Build a simple, clean HTML page with a text input box labeled "Paste Race Results URL" and a submit button called "Scrape and Sync Data".
+- When submitted, trigger the 'process_race_data(url)' function using Python's 'threading' library so the web page doesn't freeze or time out while scraping.
+- Display a success message once the background thread initiates.
+
+Please write the complete code for these files and explain how they connect to our existing 'runners' and 'race_results' database tables.

@@ -7,6 +7,7 @@
  */
 
 export * from './activityItem';
+export * from './asyncJobStarted';
 export * from './autoSearchResponse';
 export * from './bulkResultItem';
 export * from './bulkResultsInput';
@@ -15,6 +16,8 @@ export * from './categoryBreakdown';
 export * from './getLeaderboardParams';
 export * from './getRecentActivityParams';
 export * from './healthStatus';
+export * from './importJob';
+export * from './importJobStatus';
 export * from './leaderboardEntry';
 export * from './listRacesParams';
 export * from './listRunnersParams';

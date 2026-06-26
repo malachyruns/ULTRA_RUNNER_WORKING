@@ -21,12 +21,14 @@ import type {
 
 import type {
   ActivityItem,
+  AsyncJobStarted,
   AutoSearchResponse,
   BulkResultsInput,
   BulkResultsResponse,
   GetLeaderboardParams,
   GetRecentActivityParams,
   HealthStatus,
+  ImportJob,
   LeaderboardEntry,
   ListRacesParams,
   ListRunnersParams,
@@ -2387,6 +2389,155 @@ export const usePortalScrapeImport = <TError = ErrorType<void>,
       > => {
       return useMutation(getPortalScrapeImportMutationOptions(options));
     }
+
+export const getPortalScrapeImportAsyncUrl = (id: number,) => {
+
+
+
+
+  return `/api/portal/races/${id}/scrape-import-async`
+}
+
+/**
+ * @summary Start a background import job — returns a job ID immediately
+ */
+export const portalScrapeImportAsync = async (id: number,
+    scrapeInput: ScrapeInput, options?: RequestInit): Promise<AsyncJobStarted> => {
+
+  return customFetch<AsyncJobStarted>(getPortalScrapeImportAsyncUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      scrapeInput,)
+  }
+);}
+
+
+
+
+export const getPortalScrapeImportAsyncMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalScrapeImportAsync>>, TError,{id: number;data: BodyType<ScrapeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof portalScrapeImportAsync>>, TError,{id: number;data: BodyType<ScrapeInput>}, TContext> => {
+
+const mutationKey = ['portalScrapeImportAsync'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof portalScrapeImportAsync>>, {id: number;data: BodyType<ScrapeInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  portalScrapeImportAsync(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PortalScrapeImportAsyncMutationResult = NonNullable<Awaited<ReturnType<typeof portalScrapeImportAsync>>>
+    export type PortalScrapeImportAsyncMutationBody = BodyType<ScrapeInput>
+    export type PortalScrapeImportAsyncMutationError = ErrorType<void>
+
+    /**
+ * @summary Start a background import job — returns a job ID immediately
+ */
+export const usePortalScrapeImportAsync = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalScrapeImportAsync>>, TError,{id: number;data: BodyType<ScrapeInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof portalScrapeImportAsync>>,
+        TError,
+        {id: number;data: BodyType<ScrapeInput>},
+        TContext
+      > => {
+      return useMutation(getPortalScrapeImportAsyncMutationOptions(options));
+    }
+
+export const getPortalGetJobUrl = (jobId: string,) => {
+
+
+
+
+  return `/api/portal/jobs/${jobId}`
+}
+
+/**
+ * @summary Poll the status of a background import job
+ */
+export const portalGetJob = async (jobId: string, options?: RequestInit): Promise<ImportJob> => {
+
+  return customFetch<ImportJob>(getPortalGetJobUrl(jobId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPortalGetJobQueryKey = (jobId: string,) => {
+    return [
+    `/api/portal/jobs/${jobId}`
+    ] as const;
+    }
+
+
+export const getPortalGetJobQueryOptions = <TData = Awaited<ReturnType<typeof portalGetJob>>, TError = ErrorType<void>>(jobId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof portalGetJob>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPortalGetJobQueryKey(jobId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof portalGetJob>>> = ({ signal }) => portalGetJob(jobId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(jobId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof portalGetJob>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type PortalGetJobQueryResult = NonNullable<Awaited<ReturnType<typeof portalGetJob>>>
+export type PortalGetJobQueryError = ErrorType<void>
+
+
+/**
+ * @summary Poll the status of a background import job
+ */
+
+export function usePortalGetJob<TData = Awaited<ReturnType<typeof portalGetJob>>, TError = ErrorType<void>>(
+ jobId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof portalGetJob>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getPortalGetJobQueryOptions(jobId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
 
 export const getPortalAutoSearchUrl = (id: number,) => {
 

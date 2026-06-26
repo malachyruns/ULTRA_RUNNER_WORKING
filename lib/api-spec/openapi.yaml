@@ -663,6 +663,54 @@ paths:
         "422":
           description: Scrape failed
 
+  /portal/races/{id}/scrape-import-async:
+    post:
+      operationId: portalScrapeImportAsync
+      tags: [portal]
+      summary: Start a background import job — returns a job ID immediately
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScrapeInput"
+      responses:
+        "202":
+          description: Job started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AsyncJobStarted"
+        "422":
+          description: Scrape failed
+
+  /portal/jobs/{jobId}:
+    get:
+      operationId: portalGetJob
+      tags: [portal]
+      summary: Poll the status of a background import job
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportJob"
+        "404":
+          description: Job not found or expired
+
   /portal/races/{id}/auto-search:
     post:
       operationId: portalAutoSearch
@@ -1254,6 +1302,10 @@ components:
           type: ["integer", "null"]
         dnf:
           type: boolean
+        birthYear:
+          type: ["integer", "null"]
+        ageCategory:
+          type: ["string", "null"]
 
     ScrapePreview:
       type: object
@@ -1310,6 +1362,34 @@ components:
         confidence:
           type: string
           enum: [high, medium, low]
+
+    AsyncJobStarted:
+      type: object
+      required: [jobId, total]
+      properties:
+        jobId:
+          type: string
+        total:
+          type: integer
+
+    ImportJob:
+      type: object
+      required: [id, status, processed, total]
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, done, error]
+        processed:
+          type: integer
+        total:
+          type: integer
+        result:
+          nullable: true
+          $ref: "#/components/schemas/ScrapeImportResponse"
+        error:
+          type: ["string", "null"]
 
     AutoSearchResponse:
       type: object

@@ -495,6 +495,10 @@ export interface ScrapedResultItem {
   /** @nullable */
   finishTimeSeconds?: number | null;
   dnf?: boolean;
+  /** @nullable */
+  birthYear?: number | null;
+  /** @nullable */
+  ageCategory?: string | null;
 }
 
 export interface ScrapePreview {
@@ -539,6 +543,31 @@ export interface SearchCandidate {
   /** @nullable */
   finishers?: number | null;
   confidence: SearchCandidateConfidence;
+}
+
+export interface AsyncJobStarted {
+  jobId: string;
+  total: number;
+}
+
+export type ImportJobStatus = typeof ImportJobStatus[keyof typeof ImportJobStatus];
+
+
+export const ImportJobStatus = {
+  pending: 'pending',
+  running: 'running',
+  done: 'done',
+  error: 'error',
+} as const;
+
+export interface ImportJob {
+  id: string;
+  status: ImportJobStatus;
+  processed: number;
+  total: number;
+  result?: ScrapeImportResponse | null;
+  /** @nullable */
+  error?: string | null;
 }
 
 export interface AutoSearchResponse {

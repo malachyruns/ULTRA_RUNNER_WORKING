@@ -1,19 +1,20 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
 import type { ScrapePreview, ScrapedResult } from "./types";
-import { parseTimeToSeconds } from "./types";
+import { parseTimeToSeconds, parseBirthYear, birthYearFromAge, normalizeAgeCategory } from "./types";
 
 const HEADERS = {
   "User-Agent": "Mozilla/5.0 (compatible; UltraRank/1.0; +https://ultrarank.run)",
   "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 };
 
-// Keywords that suggest a column is a position/rank column
-const RANK_KEYS = ["place", "rank", "position", "pos", "pl", "#", "finish"];
-const NAME_KEYS = ["name", "athlete", "runner", "first", "last", "participant"];
-const TIME_KEYS = ["time", "finish", "gun", "chip", "clock", "result", "perf"];
-const GENDER_KEYS = ["gender", "sex", "m/f", "g"];
+const RANK_KEYS    = ["place", "rank", "position", "pos", "pl", "#", "finish"];
+const NAME_KEYS    = ["name", "athlete", "runner", "first", "last", "participant"];
+const TIME_KEYS    = ["time", "finish", "gun", "chip", "clock", "result", "perf"];
+const GENDER_KEYS  = ["gender", "sex", "m/f", "g"];
 const COUNTRY_KEYS = ["country", "nat", "nation", "state", "ctry", "nationality"];
+const AGE_KEYS     = ["age", "yob", "born", "birth", "year of birth", "dob"];
+const CAT_KEYS     = ["cat", "category", "division", "div", "ag", "age group", "class"];
 
 function colMatch(header: string, keys: string[]): boolean {
   const h = header.toLowerCase().trim();
@@ -37,9 +38,10 @@ function bestTable($: cheerio.CheerioAPI): cheerio.Cheerio<any> | null {
     if (headers.some(h => colMatch(h, NAME_KEYS))) score += 3;
     if (headers.some(h => colMatch(h, TIME_KEYS))) score += 2;
     if (headers.some(h => colMatch(h, GENDER_KEYS))) score += 1;
+    if (headers.some(h => colMatch(h, AGE_KEYS))) score += 1;
 
     const rowCount = $(el).find("tbody tr, tr").length;
-    score += Math.min(rowCount / 10, 3); // Reward larger tables up to a point
+    score += Math.min(rowCount / 10, 3);
 
     if (score > bestScore) {
       bestScore = score;
@@ -56,7 +58,6 @@ export async function scrapeGeneric(url: string): Promise<ScrapePreview> {
   const resp = await axios.get(url, { headers: HEADERS, timeout: 15000 });
   const html = resp.data as string;
 
-  // Detect JS-only shells — if the body has very little text it's probably client-rendered
   const textLength = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().length;
   if (textLength < 500) {
     throw new Error(
@@ -89,14 +90,15 @@ export async function scrapeGeneric(url: string): Promise<ScrapePreview> {
     headers.push($(th).text().trim());
   });
 
-  const rankIdx = headers.findIndex(h => colMatch(h, RANK_KEYS));
-  const nameIdx = headers.findIndex(h => colMatch(h, NAME_KEYS));
-  // For split first/last name, find both
-  const firstIdx = headers.findIndex(h => h.toLowerCase().trim() === "first" || h.toLowerCase().includes("first name"));
-  const lastIdx = headers.findIndex(h => h.toLowerCase().trim() === "last" || h.toLowerCase().includes("last name") || h.toLowerCase() === "surname");
-  const timeIdx = headers.findIndex(h => colMatch(h, TIME_KEYS));
-  const genderIdx = headers.findIndex(h => colMatch(h, GENDER_KEYS));
+  const rankIdx    = headers.findIndex(h => colMatch(h, RANK_KEYS));
+  const nameIdx    = headers.findIndex(h => colMatch(h, NAME_KEYS));
+  const firstIdx   = headers.findIndex(h => h.toLowerCase().trim() === "first" || h.toLowerCase().includes("first name"));
+  const lastIdx    = headers.findIndex(h => h.toLowerCase().trim() === "last" || h.toLowerCase().includes("last name") || h.toLowerCase() === "surname");
+  const timeIdx    = headers.findIndex(h => colMatch(h, TIME_KEYS));
+  const genderIdx  = headers.findIndex(h => colMatch(h, GENDER_KEYS));
   const countryIdx = headers.findIndex(h => colMatch(h, COUNTRY_KEYS));
+  const ageIdx     = headers.findIndex(h => colMatch(h, AGE_KEYS));
+  const catIdx     = headers.findIndex(h => colMatch(h, CAT_KEYS));
 
   table.find("tbody tr, tr").slice(1).each((_, row) => {
     const cells: string[] = [];
@@ -118,13 +120,26 @@ export async function scrapeGeneric(url: string): Promise<ScrapePreview> {
     if (!name || name.length < 2) return;
 
     const position = isDnf ? null : (parseInt(rankStr, 10) || null);
-    const timeStr = timeIdx >= 0 ? cells[timeIdx] ?? "" : "";
+    const timeStr  = timeIdx >= 0 ? cells[timeIdx] ?? "" : "";
     const finishTimeSeconds = parseTimeToSeconds(timeStr);
     const genderRaw = genderIdx >= 0 ? (cells[genderIdx] ?? "").trim().toUpperCase() : null;
     const gender = genderRaw === "M" || genderRaw === "F" || genderRaw === "X" ? genderRaw : null;
     const country = countryIdx >= 0 ? cells[countryIdx]?.trim() || null : null;
 
-    results.push({ runnerName: name, position, finishTimeSeconds, gender, country, dnf: isDnf });
+    // Birth year / age
+    let birthYear: number | null = null;
+    if (ageIdx >= 0) {
+      const raw = cells[ageIdx] ?? "";
+      birthYear = parseBirthYear(raw);
+      if (!birthYear) {
+        const age = parseInt(raw, 10);
+        if (!isNaN(age) && age > 0 && age < 120) birthYear = birthYearFromAge(age);
+      }
+    }
+
+    const ageCategory = catIdx >= 0 ? normalizeAgeCategory(cells[catIdx] ?? "") : null;
+
+    results.push({ runnerName: name, position, finishTimeSeconds, gender, country, dnf: isDnf, birthYear, ageCategory });
   });
 
   return {

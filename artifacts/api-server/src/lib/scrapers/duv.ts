@@ -1,7 +1,7 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
 import type { ScrapePreview, ScrapedResult } from "./types";
-import { parseTimeToSeconds } from "./types";
+import { parseTimeToSeconds, parseBirthYear, birthYearFromAge, normalizeAgeCategory } from "./types";
 
 const HEADERS = {
   "User-Agent": "Mozilla/5.0 (compatible; UltraRank/1.0; +https://ultrarank.run)",
@@ -26,7 +26,7 @@ export async function scrapeDuv(url: string): Promise<ScrapePreview> {
 
   const results: ScrapedResult[] = [];
 
-  // DUV tables: Rank, Perf, Name, Club, Nat, YOB, Sex
+  // DUV columns: Rank, Perf, Name, Club, Nat, YOB, Sex, (Cat)
   $("table").each((_, table) => {
     const headers: string[] = [];
     $(table).find("tr:first-child th, tr:first-child td").each((_, th) => {
@@ -37,11 +37,14 @@ export async function scrapeDuv(url: string): Promise<ScrapePreview> {
     const hasPerf = headers.some(h => h.includes("perf") || h.includes("time") || h.includes("result"));
     if (!hasRank && !hasPerf) return;
 
-    const rankIdx = headers.findIndex(h => h.includes("rank") || h === "pl" || h === "pos" || h === "#");
-    const perfIdx = headers.findIndex(h => h.includes("perf") || h.includes("time") || h.includes("result"));
-    const nameIdx = headers.findIndex(h => h.includes("name") || h.includes("athlete") || h.includes("runner"));
-    const natIdx = headers.findIndex(h => h.includes("nat") || h.includes("country") || h.includes("ctry"));
-    const sexIdx = headers.findIndex(h => h === "sex" || h === "gender" || h === "m/f" || h === "g");
+    const rankIdx   = headers.findIndex(h => h.includes("rank") || h === "pl" || h === "pos" || h === "#");
+    const perfIdx   = headers.findIndex(h => h.includes("perf") || h.includes("time") || h.includes("result"));
+    const nameIdx   = headers.findIndex(h => h.includes("name") || h.includes("athlete") || h.includes("runner"));
+    const natIdx    = headers.findIndex(h => h.includes("nat") || h.includes("country") || h.includes("ctry"));
+    const sexIdx    = headers.findIndex(h => h === "sex" || h === "gender" || h === "m/f" || h === "g");
+    // DUV commonly has "YOB" (Year Of Birth) and "Cat" (age category like "M40")
+    const yobIdx    = headers.findIndex(h => h === "yob" || h.includes("birth") || h === "born" || h === "year");
+    const catIdx    = headers.findIndex(h => h === "cat" || h === "category" || h === "ag" || h === "class");
 
     $(table).find("tbody tr, tr").slice(1).each((_, row) => {
       const cells: string[] = [];
@@ -50,14 +53,14 @@ export async function scrapeDuv(url: string): Promise<ScrapePreview> {
 
       const rankStr = rankIdx >= 0 ? cells[rankIdx] ?? "" : cells[0] ?? "";
       const isDnf = rankStr.toUpperCase().includes("DNF") ||
-        cells.some(c => c.toUpperCase() === "DNF" || c.toUpperCase() === "DNF");
+        cells.some(c => c.toUpperCase() === "DNF");
 
-      const nameRaw = nameIdx >= 0 ? cells[nameIdx] : cells[2] ?? "";
+      const nameRaw = nameIdx >= 0 ? cells[nameIdx] ?? "" : cells[2] ?? "";
       const name = nameRaw.trim();
       if (!name) return;
 
       const position = isDnf ? null : (parseInt(rankStr, 10) || null);
-      const timeStr = perfIdx >= 0 ? cells[perfIdx] ?? "" : "";
+      const timeStr  = perfIdx >= 0 ? cells[perfIdx] ?? "" : "";
       const finishTimeSeconds = isDnf ? null : parseTimeToSeconds(timeStr);
       const nat = natIdx >= 0 ? cells[natIdx]?.trim() || null : null;
       const sexRaw = sexIdx >= 0 ? cells[sexIdx]?.trim().toUpperCase() : null;
@@ -65,7 +68,22 @@ export async function scrapeDuv(url: string): Promise<ScrapePreview> {
         ? (sexRaw === "W" ? "F" : sexRaw)
         : null;
 
-      results.push({ runnerName: name, position, finishTimeSeconds, gender, country: nat, dnf: isDnf });
+      // Year of birth (DUV exports this directly as a 4-digit year)
+      let birthYear: number | null = null;
+      if (yobIdx >= 0) {
+        const raw = cells[yobIdx] ?? "";
+        birthYear = parseBirthYear(raw);
+        // Fallback: if it looks like an age
+        if (!birthYear) {
+          const age = parseInt(raw, 10);
+          if (!isNaN(age) && age > 0 && age < 120) birthYear = birthYearFromAge(age);
+        }
+      }
+
+      // Age category (DUV uses "M40", "W50", "M-JUN", etc.)
+      const ageCategory = catIdx >= 0 ? normalizeAgeCategory(cells[catIdx] ?? "") : null;
+
+      results.push({ runnerName: name, position, finishTimeSeconds, gender, country: nat, dnf: isDnf, birthYear, ageCategory });
     });
   });
 

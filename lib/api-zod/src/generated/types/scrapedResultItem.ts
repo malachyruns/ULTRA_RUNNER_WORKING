@@ -17,4 +17,8 @@ export interface ScrapedResultItem {
   /** @nullable */
   finishTimeSeconds?: number | null;
   dnf?: boolean;
+  /** @nullable */
+  birthYear?: number | null;
+  /** @nullable */
+  ageCategory?: string | null;
 }

@@ -704,7 +704,9 @@ export const PortalScrapePreviewResponse = zod.object({
   "gender": zod.string().nullish(),
   "position": zod.number().nullish(),
   "finishTimeSeconds": zod.number().nullish(),
-  "dnf": zod.boolean().optional()
+  "dnf": zod.boolean().optional(),
+  "birthYear": zod.number().nullish(),
+  "ageCategory": zod.string().nullish()
 }))
 })
 
@@ -727,6 +729,42 @@ export const PortalScrapeImportResponse = zod.object({
   "difficultyScore": zod.number(),
   "source": zod.string().nullish(),
   "raceName": zod.string().nullish()
+})
+
+
+/**
+ * @summary Start a background import job — returns a job ID immediately
+ */
+export const PortalScrapeImportAsyncParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const PortalScrapeImportAsyncBody = zod.object({
+  "url": zod.string()
+})
+
+
+/**
+ * @summary Poll the status of a background import job
+ */
+export const PortalGetJobParams = zod.object({
+  "jobId": zod.coerce.string()
+})
+
+export const PortalGetJobResponse = zod.object({
+  "id": zod.string(),
+  "status": zod.enum(['pending', 'running', 'done', 'error']),
+  "processed": zod.number(),
+  "total": zod.number(),
+  "result": zod.object({
+  "resultsCreated": zod.number(),
+  "runnersCreated": zod.number(),
+  "runnersUpdated": zod.number(),
+  "difficultyScore": zod.number(),
+  "source": zod.string().nullish(),
+  "raceName": zod.string().nullish()
+}).nullish(),
+  "error": zod.string().nullish()
 })
 
 
