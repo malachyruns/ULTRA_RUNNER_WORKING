@@ -1,41 +1,24 @@
 /**
- * Shared import pipeline.
+ * Import pipeline — Elo-based rating system.
  *
- * Receives a scraped preview and a race row, then:
- *  1. Resolves each runner (create or update) matching on name + birth year.
- *  2. Computes points using two complementary algorithms:
- *     a) Difficulty-weighted position score  (used for global rankings).
- *     b) Winner-time endurance level: (winnerTime / runnerTime) × 1000.
- *  3. Upserts the race_results row (idempotent).
- *  4. Updates each runner's aggregate stats and endurance level.
- *  5. Recomputes global rank for all runners.
+ * How it works:
+ *  1. Resolve every runner in the scraped field (create or find by name+birthYear).
+ *  2. Snapshot everyone's rating BEFORE any updates.
+ *  3. Compute pairwise Elo deltas for the whole field in one pass.
+ *  4. Apply all deltas atomically (no runner's new rating affects another's calc).
+ *  5. Persist per-race Elo delta into results.points (can be negative).
+ *  6. Update aggregate stats (totalRaces, bestFinish, enduranceLevel).
+ *  7. Mark race complete and recompute global ranks.
  *
  * Async job registry lets callers fire-and-forget then poll for status.
  */
 import { db, racesTable, resultsTable, runnersTable } from "@workspace/db";
-import { eq, desc, ilike, and, or } from "drizzle-orm";
+import { eq, desc, ilike, and } from "drizzle-orm";
 import type { ScrapePreview } from "./scrapers/types";
-import { computePoints } from "./difficulty";
+import { computeEloChanges, computeEnduranceLevel, type FieldEntry } from "./difficulty";
 import { logger } from "./logger";
 
-// ─── Scoring ──────────────────────────────────────────────────────────────────
-
-/**
- * Endurance level formula from the spec:
- *   WinnerTime / RunnerTime × 1000
- *
- * Winner scores 1 000. A runner who takes twice as long scores 500.
- * Returns 0 if either time is missing.
- */
-export function computeEnduranceLevel(
-  winnerTimeSeconds: number | null | undefined,
-  runnerTimeSeconds: number | null | undefined,
-): number {
-  if (!winnerTimeSeconds || !runnerTimeSeconds || runnerTimeSeconds <= 0) return 0;
-  return Math.round((winnerTimeSeconds / runnerTimeSeconds) * 1000 * 10) / 10;
-}
-
-// ─── Async job registry ────────────────────────────────────────────────────────
+// ─── Types ─────────────────────────────────────────────────────────────────────
 
 export type JobStatus = "pending" | "running" | "done" | "error";
 
@@ -59,6 +42,8 @@ export interface ImportResult {
   raceName: string | null;
 }
 
+// ─── Job registry ──────────────────────────────────────────────────────────────
+
 const jobs = new Map<string, ImportJob>();
 
 function makeJobId(): string {
@@ -69,7 +54,6 @@ export function getJob(id: string): ImportJob | undefined {
   return jobs.get(id);
 }
 
-// Prune jobs older than 30 minutes to avoid memory leaks
 function pruneOldJobs(): void {
   const cutoff = Date.now() - 30 * 60_000;
   for (const [id, job] of jobs) {
@@ -77,7 +61,69 @@ function pruneOldJobs(): void {
   }
 }
 
-// ─── Core pipeline ────────────────────────────────────────────────────────────
+// ─── Runner resolution helper ──────────────────────────────────────────────────
+
+async function resolveRunner(
+  name: string,
+  birthYear: number | null | undefined,
+  gender: string | null | undefined,
+  country: string | null | undefined,
+  ageCategory: string | null | undefined,
+): Promise<{ runnerId: number; created: boolean }> {
+  // 1. Match by name + birth year (most specific)
+  if (birthYear) {
+    const [row] = await db
+      .select()
+      .from(runnersTable)
+      .where(and(ilike(runnersTable.name, name), eq(runnersTable.birthYear, birthYear)));
+    if (row) {
+      // Fill in any missing profile fields
+      const updates: Record<string, unknown> = {};
+      if (!row.gender && gender) updates.gender = gender;
+      if (!row.country && country) updates.country = country;
+      if (!row.ageCategory && ageCategory) updates.ageCategory = ageCategory;
+      if (Object.keys(updates).length) {
+        await db.update(runnersTable).set(updates).where(eq(runnersTable.id, row.id));
+      }
+      return { runnerId: row.id, created: false };
+    }
+  }
+
+  // 2. Fallback: name only
+  const [row] = await db.select().from(runnersTable).where(ilike(runnersTable.name, name));
+  if (row) {
+    const updates: Record<string, unknown> = {};
+    if (!row.gender && gender) updates.gender = gender;
+    if (!row.country && country) updates.country = country;
+    if (!row.birthYear && birthYear) updates.birthYear = birthYear;
+    if (!row.ageCategory && ageCategory) updates.ageCategory = ageCategory;
+    if (Object.keys(updates).length) {
+      await db.update(runnersTable).set(updates).where(eq(runnersTable.id, row.id));
+    }
+    return { runnerId: row.id, created: false };
+  }
+
+  // 3. Create new runner — starting Elo 1500
+  const currentYear = new Date().getFullYear();
+  const age = birthYear ? currentYear - birthYear : null;
+  const [newRunner] = await db.insert(runnersTable).values({
+    name,
+    country: country ?? "Unknown",
+    gender: gender ?? "M",
+    rating: "1500",
+    ratingChange: "0",
+    rank: 0,
+    totalRaces: 0,
+    totalDistanceKm: "0",
+    birthYear: birthYear ?? null,
+    ageCategory: ageCategory ?? null,
+    age: age ?? null,
+  }).returning();
+
+  return { runnerId: newRunner.id, created: true };
+}
+
+// ─── Core import pipeline ──────────────────────────────────────────────────────
 
 export async function importFromPreview(
   raceId: number,
@@ -87,144 +133,115 @@ export async function importFromPreview(
   if (!race) throw new Error(`Race ${raceId} not found`);
 
   const difficultyScore = parseFloat(race.difficultyScore);
-  const finisherResults = preview.results.filter(r => !r.dnf);
-  const totalFinishers = finisherResults.length;
+  const validEntries = preview.results.filter(e => e.runnerName?.trim());
+  const totalFinishers = validEntries.filter(r => !r.dnf).length;
 
-  // Winner's finish time (position 1, or first non-DNF entry)
-  const winnerEntry = finisherResults.find(r => r.position === 1) ?? finisherResults[0];
+  // Winner's finish time for endurance-level calc
+  const winnerEntry = validEntries.find(r => r.position === 1 && !r.dnf) ?? validEntries.find(r => !r.dnf);
   const winnerTimeSeconds = winnerEntry?.finishTimeSeconds ?? null;
 
   let runnersCreated = 0;
   let runnersUpdated = 0;
+
+  // ── Pass 1: resolve all runners, snapshot their PRE-RACE ratings ─────────────
+  // We must collect all ratings BEFORE updating any, so pairwise Elo is fair.
+  const resolvedField: Array<{
+    runnerId: number;
+    preRaceRating: number;
+    position: number | null;
+    dnf: boolean;
+    finishTimeSeconds: number | null;
+  }> = [];
+
+  for (const entry of validEntries) {
+    const name = entry.runnerName!.trim();
+    const { runnerId, created } = await resolveRunner(
+      name,
+      entry.birthYear,
+      entry.gender,
+      entry.country,
+      entry.ageCategory,
+    );
+    if (created) runnersCreated++; else runnersUpdated++;
+
+    const [runner] = await db.select().from(runnersTable).where(eq(runnersTable.id, runnerId));
+    resolvedField.push({
+      runnerId,
+      preRaceRating: parseFloat(runner.rating),
+      position: entry.position ?? null,
+      dnf: entry.dnf ?? false,
+      finishTimeSeconds: entry.finishTimeSeconds ?? null,
+    });
+  }
+
+  // ── Pass 2: compute all pairwise Elo deltas using PRE-RACE ratings ───────────
+  const eloField: FieldEntry[] = resolvedField.map(r => ({
+    runnerId: r.runnerId,
+    rating: r.preRaceRating,
+    position: r.position,
+    dnf: r.dnf,
+  }));
+  const eloDeltas = computeEloChanges(eloField, difficultyScore);
+
+  // ── Pass 3: apply Elo deltas + persist results ───────────────────────────────
   let resultsCreated = 0;
 
-  for (const entry of preview.results) {
-    const name = entry.runnerName?.trim();
-    if (!name) continue;
+  for (const r of resolvedField) {
+    const delta = eloDeltas.get(r.runnerId) ?? 0;
+    const newRating = Math.max(100, r.preRaceRating + delta); // Floor at 100
 
-    // ── 1. Resolve runner (name + birth year dedup) ──────────────────────────
-    let existingRunner = null;
-
-    // Best match: name AND birth year both match
-    if (entry.birthYear) {
-      const [byBoth] = await db
-        .select()
-        .from(runnersTable)
-        .where(and(ilike(runnersTable.name, name), eq(runnersTable.birthYear, entry.birthYear)));
-      existingRunner = byBoth ?? null;
-    }
-
-    // Fallback: name-only match (if no birth year available)
-    if (!existingRunner) {
-      const [byName] = await db
-        .select()
-        .from(runnersTable)
-        .where(ilike(runnersTable.name, name));
-      existingRunner = byName ?? null;
-    }
-
-    let runnerId: number;
-
-    if (existingRunner) {
-      runnerId = existingRunner.id;
-      // Update profile fields that may be newly available
-      const updates: Record<string, unknown> = {};
-      if (!existingRunner.gender && entry.gender) updates.gender = entry.gender;
-      if (!existingRunner.country && entry.country) updates.country = entry.country;
-      if (!existingRunner.birthYear && entry.birthYear) updates.birthYear = entry.birthYear;
-      if (!existingRunner.ageCategory && entry.ageCategory) updates.ageCategory = entry.ageCategory;
-      if (Object.keys(updates).length) {
-        await db.update(runnersTable).set(updates).where(eq(runnersTable.id, runnerId));
-      }
-      runnersUpdated++;
-    } else {
-      const currentYear = new Date().getFullYear();
-      const age = entry.birthYear ? currentYear - entry.birthYear : null;
-      const [newRunner] = await db.insert(runnersTable).values({
-        name,
-        country: entry.country ?? "Unknown",
-        gender: entry.gender ?? "M",
-        rating: "1000",
-        rank: 0,
-        totalRaces: 0,
-        totalDistanceKm: "0",
-        birthYear: entry.birthYear ?? null,
-        ageCategory: entry.ageCategory ?? null,
-        age: age ?? null,
-      }).returning();
-      runnerId = newRunner.id;
-      runnersCreated++;
-    }
-
-    // ── 2. Idempotent result upsert ───────────────────────────────────────────
+    // Idempotent result upsert
     await db.delete(resultsTable)
-      .where(and(eq(resultsTable.runnerId, runnerId), eq(resultsTable.raceId, raceId)));
+      .where(and(eq(resultsTable.runnerId, r.runnerId), eq(resultsTable.raceId, raceId)));
 
-    // Difficulty-weighted position points (used for global ranking)
-    const points = computePoints({
-      position: entry.position,
-      dnf: entry.dnf ?? false,
-      totalFinishers,
-      difficultyScore,
-    });
-
+    // Store Elo delta in points (can be negative — reflects real performance)
     await db.insert(resultsTable).values({
-      runnerId,
+      runnerId: r.runnerId,
       raceId,
-      position: entry.position ?? null,
-      finishTimeSeconds: entry.finishTimeSeconds ?? null,
-      dnf: entry.dnf ?? false,
-      points: String(points),
+      position: r.position,
+      finishTimeSeconds: r.finishTimeSeconds,
+      dnf: r.dnf,
+      points: String(delta),          // Elo delta for this race
     });
 
     resultsCreated++;
 
-    // ── 3. Runner aggregate stats ─────────────────────────────────────────────
-    const allResults = await db.select().from(resultsTable).where(eq(resultsTable.runnerId, runnerId));
-    const finishes = allResults.filter(r => !r.dnf && r.position);
-    const bestFinish = finishes.length ? Math.min(...finishes.map(r => r.position!)) : null;
+    // Aggregate stats
+    const allResults = await db.select().from(resultsTable).where(eq(resultsTable.runnerId, r.runnerId));
+    const finishes = allResults.filter(x => !x.dnf && x.position);
+    const bestFinish = finishes.length ? Math.min(...finishes.map(x => x.position!)) : null;
     const totalRaces = allResults.length;
-    const totalPoints = allResults.reduce((acc, r) => acc + parseFloat(r.points), 0);
 
-    // Winner-time endurance level: best (highest) across all this runner's results
-    const enduranceLevel = computeEnduranceLevel(winnerTimeSeconds, entry.finishTimeSeconds);
+    const enduranceLevel = computeEnduranceLevel(winnerTimeSeconds, r.finishTimeSeconds);
 
     await db.update(runnersTable).set({
+      rating: String(newRating),
+      ratingChange: String(delta),
       totalRaces,
       bestFinish,
-      rating: String(1000 + totalPoints),
-      enduranceLevel: String(enduranceLevel > 0 ? enduranceLevel : 0),
-    }).where(eq(runnersTable.id, runnerId));
+      enduranceLevel: enduranceLevel > 0 ? String(enduranceLevel) : undefined,
+    }).where(eq(runnersTable.id, r.runnerId));
   }
 
-  // ── 4. Mark race complete ─────────────────────────────────────────────────
+  // ── Mark race complete ────────────────────────────────────────────────────────
   await db.update(racesTable).set({
     status: "completed",
     finishersCount: totalFinishers,
   }).where(eq(racesTable.id, raceId));
 
-  // ── 5. Recompute global ranks ─────────────────────────────────────────────
+  // ── Recompute global ranks by Elo rating ──────────────────────────────────────
   const allRunners = await db.select().from(runnersTable).orderBy(desc(runnersTable.rating));
   for (let i = 0; i < allRunners.length; i++) {
     await db.update(runnersTable).set({ rank: i + 1 }).where(eq(runnersTable.id, allRunners[i].id));
   }
 
-  return {
-    resultsCreated,
-    runnersCreated,
-    runnersUpdated,
-    difficultyScore,
-    source: preview.source,
-    raceName: preview.raceName,
-  };
+  logger.info({ raceId, resultsCreated, runnersCreated, runnersUpdated, difficultyScore }, "Import complete");
+
+  return { resultsCreated, runnersCreated, runnersUpdated, difficultyScore, source: preview.source, raceName: preview.raceName };
 }
 
 // ─── Async wrapper ────────────────────────────────────────────────────────────
 
-/**
- * Start an import in the background and return a job ID immediately.
- * The caller can poll GET /portal/jobs/:jobId for progress.
- */
 export function startImportJob(raceId: number, preview: ScrapePreview): ImportJob {
   pruneOldJobs();
 
@@ -237,7 +254,6 @@ export function startImportJob(raceId: number, preview: ScrapePreview): ImportJo
   };
   jobs.set(job.id, job);
 
-  // Fire and forget
   (async () => {
     job.status = "running";
     try {
@@ -246,12 +262,12 @@ export function startImportJob(raceId: number, preview: ScrapePreview): ImportJo
       job.processed = preview.results.length;
       job.result = result;
       job.finishedAt = new Date();
-      logger.info({ jobId: job.id, raceId, ...result }, "Import job completed");
+      logger.info({ jobId: job.id, raceId, ...result }, "Async import job completed");
     } catch (err: unknown) {
       job.status = "error";
       job.error = err instanceof Error ? err.message : "Unknown error";
       job.finishedAt = new Date();
-      logger.error({ jobId: job.id, raceId, err: job.error }, "Import job failed");
+      logger.error({ jobId: job.id, raceId, err: job.error }, "Async import job failed");
     }
   })();
 

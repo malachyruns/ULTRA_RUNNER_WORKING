@@ -1,12 +1,14 @@
 /**
- * Difficulty scoring engine.
+ * Difficulty scoring engine + Elo rating system.
  *
- * Produces a multiplier (≥ 1.0) that scales the points awarded for a race.
- * A flat road 50K in clear weather scores 1.0.
- * A mountain 100-miler in a storm with max technicality scores ~3.5.
- *
- * Formula (multiplicative):
+ * Difficulty score — multiplicative multiplier ≥ 1.0:
  *   score = surface × elevation × weather × technicality
+ *
+ * Elo rating — pairwise comparison across every runner in a field:
+ *   For each pair (A, B): delta = K × (actual − expected)
+ *   where expected = 1 / (1 + 10^((Rb − Ra) / 400))
+ *   K scales with race difficulty and is normalized by √(fieldSize)
+ *   so large fields don't cause runaway swings.
  */
 
 type Surface = "trail" | "road" | "mountain" | "mixed";
@@ -27,19 +29,12 @@ const WEATHER_FACTOR: Record<string, number> = {
   storm: 1.35,
 };
 
-/**
- * Elevation factor: adds 0.08 per 1 000 m of gain per 100 km.
- * A race with 10 000 m gain over 170 km ≈ +0.47
- */
 function elevationFactor(totalElevationM: number | null | undefined, distanceKm: number): number {
   if (!totalElevationM || distanceKm === 0) return 1.0;
-  const vertRatio = (totalElevationM / distanceKm) * 100; // m gain per 100 km
+  const vertRatio = (totalElevationM / distanceKm) * 100;
   return 1.0 + (vertRatio / 1000) * 0.08;
 }
 
-/**
- * Technicality factor: rating 1–5 maps linearly to 1.0–1.45.
- */
 function technicalityFactor(rating: number | null | undefined): number {
   if (!rating) return 1.0;
   const clamped = Math.max(1, Math.min(5, rating));
@@ -57,25 +52,89 @@ export function computeDifficultyScore(opts: {
   const ef = elevationFactor(opts.totalElevationM, opts.distanceKm);
   const wf = WEATHER_FACTOR[opts.weatherConditions ?? "clear"] ?? 1.0;
   const tf = technicalityFactor(opts.technicalityRating);
+  return Math.round(sf * ef * wf * tf * 1000) / 1000;
+}
 
-  const raw = sf * ef * wf * tf;
-  return Math.round(raw * 1000) / 1000;
+// ─── Elo engine ───────────────────────────────────────────────────────────────
+
+/**
+ * One entry in the race field, used by computeEloChanges.
+ */
+export interface FieldEntry {
+  runnerId: number;
+  /** Rating BEFORE this race — must be a snapshot, not updated mid-loop. */
+  rating: number;
+  position: number | null;
+  dnf: boolean;
 }
 
 /**
- * Points awarded to a single finisher.
- * Base points scale with position (1st = 1000, decays).
- * All points are then multiplied by the race difficulty score.
+ * Compute pairwise Elo deltas for an entire race field.
+ *
+ * Rules:
+ *  - Lower position number = better finish (1st place beats 2nd place)
+ *  - DNF loses against all finishers, ties with other DNFs
+ *  - Missing position (no timing data) treated as a draw
+ *
+ * K per matchup = (BASE_K × difficultyScore) / √(fieldSize)
+ *   → difficulty 1.0, 100 runners: K ≈ 3.2 per match, max swing ≈ ±320 pts
+ *   → difficulty 3.5, 20 runners:  K ≈ 25  per match, max swing ≈ ±475 pts
+ *
+ * Returns Map<runnerId, delta> where delta can be positive or negative.
  */
-export function computePoints(opts: {
-  position: number | null | undefined;
-  dnf: boolean;
-  totalFinishers: number;
-  difficultyScore: number;
-}): number {
-  if (opts.dnf || !opts.position) return 0;
-  const base = 1000;
-  const decay = Math.max(0, 1 - (opts.position - 1) / Math.max(opts.totalFinishers, 1));
-  const raw = base * decay * opts.difficultyScore;
-  return Math.round(raw * 10) / 10;
+export function computeEloChanges(
+  field: FieldEntry[],
+  difficultyScore: number,
+  BASE_K = 32,
+): Map<number, number> {
+  const deltas = new Map<number, number>();
+  for (const e of field) deltas.set(e.runnerId, 0);
+
+  if (field.length < 2) return deltas;
+
+  const K = (BASE_K * difficultyScore) / Math.sqrt(field.length);
+
+  for (let i = 0; i < field.length; i++) {
+    const a = field[i];
+    for (let j = i + 1; j < field.length; j++) {
+      const b = field[j];
+
+      // Expected probability that A beats B given pre-race ratings
+      const eA = 1 / (1 + Math.pow(10, (b.rating - a.rating) / 400));
+      const eB = 1 - eA;
+
+      // Actual result for A
+      let sA: number;
+      if (a.dnf && b.dnf) {
+        sA = 0.5;                                   // both DNF → draw
+      } else if (a.dnf) {
+        sA = 0;                                     // A DNF, B finished → A loses
+      } else if (b.dnf) {
+        sA = 1;                                     // A finished, B DNF → A wins
+      } else if (a.position === null || b.position === null) {
+        sA = 0.5;                                   // no timing data → draw
+      } else {
+        sA = a.position < b.position ? 1           // A higher place
+           : a.position > b.position ? 0           // A lower place
+           : 0.5;                                   // tied
+      }
+
+      deltas.set(a.runnerId, (deltas.get(a.runnerId) ?? 0) + K * (sA - eA));
+      deltas.set(b.runnerId, (deltas.get(b.runnerId) ?? 0) + K * ((1 - sA) - eB));
+    }
+  }
+
+  // Round to 1 decimal place
+  for (const [id, d] of deltas) deltas.set(id, Math.round(d * 10) / 10);
+
+  return deltas;
+}
+
+/** Endurance level: winner's time / runner's time × 1000. */
+export function computeEnduranceLevel(
+  winnerTimeSeconds: number | null | undefined,
+  runnerTimeSeconds: number | null | undefined,
+): number {
+  if (!winnerTimeSeconds || !runnerTimeSeconds || runnerTimeSeconds <= 0) return 0;
+  return Math.round((winnerTimeSeconds / runnerTimeSeconds) * 1000 * 10) / 10;
 }
