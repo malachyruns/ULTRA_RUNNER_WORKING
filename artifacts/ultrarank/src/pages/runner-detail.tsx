@@ -23,6 +23,8 @@ export default function RunnerDetail() {
     query: { enabled: !!id, queryKey: ['runnerResults', id] }
   });
 
+  const resultsItems = Array.isArray(results) ? results : [];
+
   if (!id) return <div>Invalid runner ID</div>;
 
   return (
@@ -199,14 +201,14 @@ export default function RunnerDetail() {
                         <td className="px-5 py-4"><Skeleton className="h-4 w-12 ml-auto" /></td>
                       </tr>
                     ))
-                  ) : results?.length === 0 ? (
+                  ) : resultsItems.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="px-5 py-12 text-center text-muted-foreground">
                         No race results found.
                       </td>
                     </tr>
                   ) : (
-                    results?.map((result) => (
+                    resultsItems.map((result) => (
                       <tr key={result.id} className="hover:bg-muted/30 transition-colors group">
                         <td className="px-5 py-4 text-xs font-mono text-muted-foreground whitespace-nowrap">
                           {formatDate(result.race.date)}

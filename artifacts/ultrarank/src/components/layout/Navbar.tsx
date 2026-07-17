@@ -23,15 +23,15 @@ export function Navbar() {
               <span>ULTRARANK</span>
             </Link>
             
-            <div className="hidden md:ml-10 md:flex md:space-x-8">
+            <div className="hidden md:ml-10 md:flex md:items-center md:space-x-3">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`inline-flex items-center gap-2 px-1 pt-1 text-sm font-medium border-b-2 transition-colors ${
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-all duration-200 ${
                     location === item.href || (location.startsWith(item.href) && item.href !== "/")
-                      ? "border-primary text-foreground"
-                      : "border-transparent text-muted-foreground hover:border-muted-foreground/30 hover:text-foreground"
+                      ? "bg-primary text-black shadow-lg shadow-primary/20"
+                      : "bg-transparent text-muted-foreground border-border hover:border-primary hover:text-primary"
                   }`}
                 >
                   <item.icon className="h-4 w-4" />

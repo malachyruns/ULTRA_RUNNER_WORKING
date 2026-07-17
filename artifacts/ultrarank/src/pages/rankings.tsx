@@ -20,8 +20,9 @@ export default function Rankings() {
     limit: 100
   });
 
-  const filteredLeaderboard = leaderboard?.filter(entry => 
-    search ? entry.name.toLowerCase().includes(search.toLowerCase()) : true
+  const leaderboardItems = Array.isArray(leaderboard) ? leaderboard : [];
+  const filteredLeaderboard = leaderboardItems.filter((entry) =>
+    search ? entry.name.toLowerCase().includes(search.toLowerCase()) : true,
   );
 
   return (
@@ -106,14 +107,14 @@ export default function Rankings() {
                     <td className="px-6 py-4"><Skeleton className="h-5 w-16 ml-auto" /></td>
                   </tr>
                 ))
-              ) : filteredLeaderboard?.length === 0 ? (
+              ) : filteredLeaderboard.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
                     No runners found matching your filters.
                   </td>
                 </tr>
               ) : (
-                filteredLeaderboard?.map((entry) => (
+                filteredLeaderboard.map((entry) => (
                   <tr key={entry.id} className="hover:bg-muted/30 transition-colors group">
                     <td className="px-6 py-4 font-mono font-medium">
                       <div className="flex items-center gap-3">

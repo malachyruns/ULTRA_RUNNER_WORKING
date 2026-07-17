@@ -19,6 +19,8 @@ export default function RaceDetail() {
     query: { enabled: !!id, queryKey: ['raceResults', id] }
   });
 
+  const resultsItems = Array.isArray(results) ? results : [];
+
   if (!id) return <div>Invalid race ID</div>;
 
   const getStatusColor = (status?: string) => {
@@ -151,14 +153,14 @@ export default function RaceDetail() {
                         <td className="px-6 py-4"><Skeleton className="h-4 w-12 ml-auto" /></td>
                       </tr>
                     ))
-                  ) : results?.length === 0 ? (
+                  ) : resultsItems.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">
                         No results recorded for this race.
                       </td>
                     </tr>
                   ) : (
-                    results?.map((result) => (
+                    resultsItems.map((result) => (
                       <tr key={result.id} className="hover:bg-muted/30 transition-colors group">
                         <td className="px-6 py-4 font-mono font-medium">
                           {result.dnf ? (

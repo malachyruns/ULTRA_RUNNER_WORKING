@@ -15,6 +15,8 @@ export default function PortalDashboard() {
   const logout = usePortalLogout();
   const { data: races, isLoading } = usePortalListRaces();
 
+  const racesItems = Array.isArray(races) ? races : [];
+
   const handleLogout = () => {
     logout.mutate(undefined, {
       onSuccess: () => {
@@ -89,7 +91,7 @@ export default function PortalDashboard() {
                     <td className="px-6 py-4"><Skeleton className="h-8 w-28 ml-auto" /></td>
                   </tr>
                 ))
-              ) : races?.length === 0 ? (
+              ) : racesItems.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground">
                     <div className="flex flex-col items-center gap-2">
@@ -102,7 +104,7 @@ export default function PortalDashboard() {
                   </td>
                 </tr>
               ) : (
-                races?.map((race) => (
+                racesItems.map((race) => (
                   <tr key={race.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-6 py-4 font-bold text-foreground">
                       <Link href={`/races/${race.id}`} className="hover:text-primary transition-colors">

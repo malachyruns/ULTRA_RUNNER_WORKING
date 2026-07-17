@@ -55,6 +55,17 @@ export function computeDifficultyScore(opts: {
   return Math.round(sf * ef * wf * tf * 1000) / 1000;
 }
 
+export function computePoints(
+  position: number | null | undefined,
+  dnf: boolean,
+  totalFinishers: number,
+): number {
+  if (dnf || !position) return 0;
+  const base = 1000;
+  const factor = Math.max(0, 1 - (position - 1) / Math.max(totalFinishers, 1));
+  return Math.round(base * factor * 10) / 10;
+}
+
 // ─── Elo engine ───────────────────────────────────────────────────────────────
 
 /**

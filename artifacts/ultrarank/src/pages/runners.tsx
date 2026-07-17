@@ -16,6 +16,8 @@ export default function Runners() {
     limit: 50
   });
 
+  const runnersItems = Array.isArray(runners) ? runners : [];
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -63,12 +65,12 @@ export default function Runners() {
               </CardContent>
             </Card>
           ))
-        ) : runners?.length === 0 ? (
+        ) : runnersItems.length === 0 ? (
           <div className="col-span-full py-12 text-center text-muted-foreground bg-card/30 rounded-lg border border-dashed border-border">
             No runners found matching your search.
           </div>
         ) : (
-          runners?.map((runner) => (
+          runnersItems.map((runner) => (
             <Link key={runner.id} href={`/runners/${runner.id}`}>
               <Card className="border-border/50 bg-card/50 hover:bg-muted/30 hover:border-primary/30 transition-all cursor-pointer group h-full">
                 <CardContent className="p-5 flex flex-col h-full">

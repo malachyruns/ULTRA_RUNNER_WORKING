@@ -21,6 +21,8 @@ export default function Races() {
     limit: 100
   });
 
+  const racesItems = Array.isArray(races) ? races : [];
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'upcoming': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
@@ -115,12 +117,12 @@ export default function Races() {
               </CardContent>
             </Card>
           ))
-        ) : races?.length === 0 ? (
+        ) : racesItems.length === 0 ? (
           <div className="py-16 text-center text-muted-foreground bg-card/30 rounded-lg border border-dashed border-border">
             No races found matching your filters.
           </div>
         ) : (
-          races?.map((race) => (
+          racesItems.map((race) => (
             <Link key={race.id} href={`/races/${race.id}`}>
               <Card className="border-border/50 bg-card/50 hover:bg-muted/30 hover:border-primary/30 transition-all cursor-pointer overflow-hidden group">
                 <CardContent className="p-0">

@@ -60,20 +60,20 @@
 }
 
 :root {
-  /* LIGHT MODE (Stark, high contrast, athletic) */
-  --background: 0 0% 98%;
-  --foreground: 240 10% 4%;
-  
-  --card: 0 0% 100%;
-  --card-foreground: 240 10% 4%;
-  --card-border: 240 6% 90%;
+  /* PRIMARY SITE THEME: black background with orange text */
+  --background: 0 0% 0%; /* black */
+  --foreground: 24 100% 50%; /* orange */
+
+  --card: 0 0% 6%;
+  --card-foreground: 24 100% 50%;
+  --card-border: 0 0% 12%;
   
   --popover: 0 0% 100%;
   --popover-foreground: 240 10% 4%;
   --popover-border: 240 6% 90%;
   
   --primary: 24 100% 50%; /* Electric Orange */
-  --primary-foreground: 0 0% 100%;
+  --primary-foreground: 0 0% 0%;
   
   --secondary: 240 5% 96%;
   --secondary-foreground: 240 10% 4%;
@@ -87,8 +87,8 @@
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
   
-  --border: 240 6% 90%;
-  --input: 240 6% 90%;
+  --border: 0 0% 12%;
+  --input: 0 0% 12%;
   --ring: 24 100% 50%;
   
   --radius: 0.25rem;
@@ -128,4 +128,21 @@
   --border: 240 10% 12%;
   --input: 240 10% 12%;
   --ring: 24 100% 55%;
+}
+
+/* Force navigation/link styling to the primary orange and uppercase */
+nav a,
+header a,
+nav .inline-flex,
+nav .text-muted-foreground {
+  color: hsl(24 100% 50%) !important;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+/* Ensure SVG icons in nav inherit the orange color */
+nav svg {
+  color: hsl(24 100% 50%) !important;
+  stroke: currentColor;
+  fill: currentColor;
 }
