@@ -60,35 +60,34 @@
 }
 
 :root {
-  /* PRIMARY SITE THEME: black background with orange text */
-  --background: 0 0% 0%; /* black */
-  --foreground: 24 100% 50%; /* orange */
+  --background: 240 10% 4%;
+  --foreground: 0 0% 98%;
 
-  --card: 0 0% 6%;
-  --card-foreground: 24 100% 50%;
-  --card-border: 0 0% 12%;
+  --card: 240 6% 10%;
+  --card-foreground: 0 0% 98%;
+  --card-border: 240 6% 18%;
   
   --popover: 0 0% 100%;
   --popover-foreground: 240 10% 4%;
   --popover-border: 240 6% 90%;
   
-  --primary: 24 100% 50%; /* Electric Orange */
+  --primary: 24 100% 50%;
   --primary-foreground: 0 0% 0%;
   
-  --secondary: 240 5% 96%;
-  --secondary-foreground: 240 10% 4%;
+  --secondary: 240 6% 12%;
+  --secondary-foreground: 0 0% 98%;
   
-  --muted: 240 5% 96%;
-  --muted-foreground: 240 4% 46%;
+  --muted: 240 6% 12%;
+  --muted-foreground: 240 5% 65%;
   
-  --accent: 240 5% 96%;
-  --accent-foreground: 240 10% 4%;
+  --accent: 240 6% 12%;
+  --accent-foreground: 0 0% 98%;
   
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
   
-  --border: 0 0% 12%;
-  --input: 0 0% 12%;
+  --border: 240 6% 18%;
+  --input: 240 6% 18%;
   --ring: 24 100% 50%;
   
   --radius: 0.25rem;
@@ -98,51 +97,33 @@
 }
 
 .dark {
-  /* DARK MODE (Deep slate, cockpit vibe) */
   --background: 240 10% 4%;
   --foreground: 0 0% 98%;
   
-  --card: 240 10% 6%;
+  --card: 240 6% 10%;
   --card-foreground: 0 0% 98%;
-  --card-border: 240 10% 12%;
+  --card-border: 240 6% 18%;
   
   --popover: 240 10% 6%;
   --popover-foreground: 0 0% 98%;
   --popover-border: 240 10% 12%;
   
-  --primary: 24 100% 55%; /* Brighter Orange for dark mode */
+  --primary: 24 100% 50%;
   --primary-foreground: 0 0% 10%;
   
-  --secondary: 240 10% 12%;
+  --secondary: 240 6% 12%;
   --secondary-foreground: 0 0% 98%;
   
-  --muted: 240 10% 12%;
+  --muted: 240 6% 12%;
   --muted-foreground: 240 5% 65%;
   
-  --accent: 240 10% 12%;
+  --accent: 240 6% 12%;
   --accent-foreground: 0 0% 98%;
   
   --destructive: 0 62% 30%;
   --destructive-foreground: 0 0% 98%;
   
-  --border: 240 10% 12%;
-  --input: 240 10% 12%;
-  --ring: 24 100% 55%;
-}
-
-/* Force navigation/link styling to the primary orange and uppercase */
-nav a,
-header a,
-nav .inline-flex,
-nav .text-muted-foreground {
-  color: hsl(24 100% 50%) !important;
-  text-transform: uppercase;
-  font-weight: 700;
-}
-
-/* Ensure SVG icons in nav inherit the orange color */
-nav svg {
-  color: hsl(24 100% 50%) !important;
-  stroke: currentColor;
-  fill: currentColor;
+  --border: 240 6% 18%;
+  --input: 240 6% 18%;
+  --ring: 24 100% 50%;
 }
