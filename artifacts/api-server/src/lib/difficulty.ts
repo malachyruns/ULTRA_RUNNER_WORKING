@@ -5,10 +5,10 @@
  *   score = surface × elevation × weather × technicality
  *
  * Elo rating — pairwise comparison across every runner in a field:
- *   For each pair (A, B): delta = K × (actual − expected)
+ *   For each pair (A, B): delta = K × margin × (actual − expected)
  *   where expected = 1 / (1 + 10^((Rb − Ra) / 400))
- *   K scales with race difficulty and is normalized by √(fieldSize)
- *   so large fields don't cause runaway swings.
+ *   K scales with sqrt(difficulty), normalized by √(fieldSize)
+ *   margin scales the swing by how large the time gap was.
  */
 
 type Surface = "trail" | "road" | "mountain" | "mixed";
@@ -55,17 +55,6 @@ export function computeDifficultyScore(opts: {
   return Math.round(sf * ef * wf * tf * 1000) / 1000;
 }
 
-export function computePoints(
-  position: number | null | undefined,
-  dnf: boolean,
-  totalFinishers: number,
-): number {
-  if (dnf || !position) return 0;
-  const base = 1000;
-  const factor = Math.max(0, 1 - (position - 1) / Math.max(totalFinishers, 1));
-  return Math.round(base * factor * 10) / 10;
-}
-
 // ─── Elo engine ───────────────────────────────────────────────────────────────
 
 /**
@@ -77,6 +66,20 @@ export interface FieldEntry {
   rating: number;
   position: number | null;
   dnf: boolean;
+  finishTimeSeconds: number | null;
+}
+
+/**
+ * Margin-of-victory multiplier: bigger time gaps → bigger rating swings.
+ * Log-scaled so a runner finishing 10x slower doesn't swing 10x as hard.
+ * Returns 1.0 (neutral) when times aren't available or comparable.
+ */
+function marginMultiplier(aTime: number | null, bTime: number | null): number {
+  if (!aTime || !bTime || aTime <= 0 || bTime <= 0) return 1.0;
+  const faster = Math.min(aTime, bTime);
+  const slower = Math.max(aTime, bTime);
+  const gapFraction = (slower - faster) / faster;
+  return 1 + Math.log(1 + gapFraction);
 }
 
 /**
@@ -86,12 +89,15 @@ export interface FieldEntry {
  *  - Lower position number = better finish (1st place beats 2nd place)
  *  - DNF loses against all finishers, ties with other DNFs
  *  - Missing position (no timing data) treated as a draw
+ *  - Larger time gaps between two finishers amplify the swing between them
  *
- * K per matchup = (BASE_K × difficultyScore) / √(fieldSize)
- *   → difficulty 1.0, 100 runners: K ≈ 3.2 per match, max swing ≈ ±320 pts
- *   → difficulty 3.5, 20 runners:  K ≈ 25  per match, max swing ≈ ±475 pts
+ * K per matchup = (BASE_K × √difficultyScore) / √fieldSize
+ *   Difficulty is now dampened (sqrt) so very hard races don't
+ *   swing ratings disproportionately relative to their real challenge.
  *
  * Returns Map<runnerId, delta> where delta can be positive or negative.
+ * NOTE: delta is now intended to be interpreted as a PERCENTAGE change
+ * by the caller (see pipeline.ts), not a flat point addition.
  */
 export function computeEloChanges(
   field: FieldEntry[],
@@ -103,7 +109,7 @@ export function computeEloChanges(
 
   if (field.length < 2) return deltas;
 
-  const K = (BASE_K * difficultyScore) / Math.sqrt(field.length);
+  const K = (BASE_K * Math.sqrt(difficultyScore)) / Math.sqrt(field.length);
 
   for (let i = 0; i < field.length; i++) {
     const a = field[i];
@@ -130,13 +136,18 @@ export function computeEloChanges(
            : 0.5;                                   // tied
       }
 
-      deltas.set(a.runnerId, (deltas.get(a.runnerId) ?? 0) + K * (sA - eA));
-      deltas.set(b.runnerId, (deltas.get(b.runnerId) ?? 0) + K * ((1 - sA) - eB));
+      // Margin of victory: no time comparison possible if either DNF'd
+      const margin = (a.dnf || b.dnf)
+        ? 1.0
+        : marginMultiplier(a.finishTimeSeconds, b.finishTimeSeconds);
+
+      deltas.set(a.runnerId, (deltas.get(a.runnerId) ?? 0) + K * margin * (sA - eA));
+      deltas.set(b.runnerId, (deltas.get(b.runnerId) ?? 0) + K * margin * ((1 - sA) - eB));
     }
   }
 
-  // Round to 1 decimal place
-  for (const [id, d] of deltas) deltas.set(id, Math.round(d * 10) / 10);
+  // Round to 3 decimal places (finer resolution since these are now % values)
+  for (const [id, d] of deltas) deltas.set(id, Math.round(d * 1000) / 1000);
 
   return deltas;
 }

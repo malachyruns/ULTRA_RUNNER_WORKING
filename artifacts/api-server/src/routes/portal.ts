@@ -12,7 +12,7 @@ import {
   PortalSubmitResultsBody,
 } from "@workspace/api-zod";
 import { requireOrganizer } from "../middleware/requireOrganizer";
-import { computeDifficultyScore, computePoints } from "../lib/difficulty";
+import { computeDifficultyScore} from "../lib/difficulty";
 import { normalizeRunner, normalizeRace } from "./runners";
 
 const router = Router();
@@ -197,13 +197,6 @@ router.post("/portal/races/:id/results", requireOrganizer, async (req, res) => {
     // Delete any existing result for this runner in this race (allow re-submission)
     await db.delete(resultsTable)
       .where(and(eq(resultsTable.runnerId, runnerId), eq(resultsTable.raceId, raceId)));
-
-    const points = computePoints({
-      position: entry.position,
-      dnf: entry.dnf ?? false,
-      totalFinishers,
-      difficultyScore,
-    });
 
     await db.insert(resultsTable).values({
       runnerId,

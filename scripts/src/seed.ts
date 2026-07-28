@@ -1,5 +1,6 @@
 import { db, racesTable, resultsTable, runnersTable } from "@workspace/db";
 import { eq, inArray, or } from "drizzle-orm";
+import { importFromPreview } from "../../artifacts/api-server/src/lib/pipeline";
 
 type SeedRunner = {
   name: string;
@@ -36,7 +37,6 @@ type SeededResult = {
   position: number;
   finishTimeSeconds: number;
   dnf: boolean;
-  points: string;
 };
 
 const seedKey = "ultraranker-testing-season-v3";
@@ -152,9 +152,17 @@ function pickRaceIndices(runnerIndex: number): number[] {
   return offsets.map((offset) => (runnerIndex + offset) % races.length);
 }
 
-function buildSeedResults(insertedRunners: Array<{ id: number; name: string }>, insertedRaces: Array<{ id: number; name: string }>): SeededResult[] {
+/**
+ * Generates realistic finish times and sorted positions for each race.
+ * Does NOT compute points/ratings anymore — that's the real Elo
+ * pipeline's job (see main(), which calls importFromPreview per race).
+ */
+function buildSeedResults(
+  insertedRunners: Array<{ id: number; name: string }>,
+  insertedRaces: Array<{ id: number; name: string }>,
+): SeededResult[] {
   const raceByName = new Map(insertedRaces.map((race) => [race.name, race]));
-  const results: SeededResult[] = [];
+  const raw: Array<Omit<SeededResult, "position">> = [];
 
   insertedRunners.forEach((runner, runnerIndex) => {
     const runnerSeed = runners[runnerIndex];
@@ -169,35 +177,27 @@ function buildSeedResults(insertedRunners: Array<{ id: number; name: string }>, 
       const variationSeconds = Math.round((deterministicNoise - 0.5) * (Number(sourceRace.distanceKm) * 14));
       const finishTimeSeconds = Math.max(5400, Math.round(baseTime + (100 - runnerSeed.hiddenAbility) * abilityWeight + variationSeconds));
 
-      results.push({
+      raw.push({
         runnerId: runner.id,
         raceId: actualRace.id,
-        position: 0,
         finishTimeSeconds,
         dnf: false,
-        points: "0",
       });
     });
   });
 
-  const resultsByRaceId = new Map<number, SeededResult[]>();
-  for (const result of results) {
-    const bucket = resultsByRaceId.get(result.raceId) ?? [];
+  const byRaceId = new Map<number, typeof raw>();
+  for (const result of raw) {
+    const bucket = byRaceId.get(result.raceId) ?? [];
     bucket.push(result);
-    resultsByRaceId.set(result.raceId, bucket);
+    byRaceId.set(result.raceId, bucket);
   }
 
   const ordered: SeededResult[] = [];
-  for (const entries of resultsByRaceId.values()) {
+  for (const entries of byRaceId.values()) {
     const sorted = entries.slice().sort((left, right) => left.finishTimeSeconds - right.finishTimeSeconds);
-    const fieldSize = sorted.length;
-
     sorted.forEach((entry, index) => {
-      ordered.push({
-        ...entry,
-        position: index + 1,
-        points: String(Math.round(1000 * (1 - index / Math.max(fieldSize - 1, 1)) * 10) / 10),
-      });
+      ordered.push({ ...entry, position: index + 1 });
     });
   }
 
@@ -205,7 +205,7 @@ function buildSeedResults(insertedRunners: Array<{ id: number; name: string }>, 
 }
 
 async function main() {
-  await db.transaction(async (tx) => {
+  const { insertedRunners, insertedRaces } = await db.transaction(async (tx) => {
     const existingRunnerIds = await tx
       .select({ id: runnersTable.id })
       .from(runnersTable)
@@ -242,60 +242,48 @@ async function main() {
     ).returning();
 
     const insertedRaces = await tx.insert(racesTable).values(races).returning();
-    const results = buildSeedResults(insertedRunners, insertedRaces);
 
-    await tx.insert(resultsTable).values(results);
-
-    const raceFinishers = new Map<number, number>();
-    const runnerStats = new Map<number, { totalRaces: number; totalDistanceKm: number; bestFinish: number | null; totalPoints: number }>();
-
-    for (const result of results) {
-      const race = insertedRaces.find((entry) => entry.id === result.raceId)!;
-      const currentRunnerStats = runnerStats.get(result.runnerId) ?? { totalRaces: 0, totalDistanceKm: 0, bestFinish: null, totalPoints: 0 };
-
-      currentRunnerStats.totalRaces += 1;
-      currentRunnerStats.totalDistanceKm += Number(race.distanceKm);
-      currentRunnerStats.bestFinish = currentRunnerStats.bestFinish === null ? result.position : Math.min(currentRunnerStats.bestFinish, result.position);
-      currentRunnerStats.totalPoints += Number(result.points);
-      runnerStats.set(result.runnerId, currentRunnerStats);
-
-      raceFinishers.set(result.raceId, (raceFinishers.get(result.raceId) ?? 0) + 1);
-    }
-
-    const rankedRunners = insertedRunners
-      .map((runner) => {
-        const stats = runnerStats.get(runner.id)!;
-        const rating = Math.round(1100 + stats.totalPoints * 0.45 + (51 - (stats.bestFinish ?? 50)) * 12);
-
-        return {
-          id: runner.id,
-          rating: String(rating),
-          totalRaces: stats.totalRaces,
-          totalDistanceKm: String(Math.round(stats.totalDistanceKm * 100) / 100),
-          bestFinish: stats.bestFinish,
-        };
-      })
-      .sort((left, right) => Number(right.rating) - Number(left.rating))
-      .map((runner, index) => ({ ...runner, rank: index + 1 }));
-
-    for (const runner of rankedRunners) {
-      await tx.update(runnersTable).set({
-        rating: runner.rating,
-        rank: runner.rank,
-        totalRaces: runner.totalRaces,
-        totalDistanceKm: runner.totalDistanceKm,
-        bestFinish: runner.bestFinish,
-      }).where(eq(runnersTable.id, runner.id));
-    }
-
-    for (const race of insertedRaces) {
-      await tx.update(racesTable).set({
-        finishersCount: raceFinishers.get(race.id) ?? 0,
-      }).where(eq(racesTable.id, race.id));
-    }
-
-    console.log(`Seeded ${insertedRunners.length} runners, ${insertedRaces.length} races, and ${results.length} results.`);
+    return { insertedRunners, insertedRaces };
   });
+
+  const results = buildSeedResults(insertedRunners, insertedRaces);
+  const runnerById = new Map(insertedRunners.map((r) => [r.id, r]));
+
+  const resultsByRaceId = new Map<number, SeededResult[]>();
+  for (const result of results) {
+    const bucket = resultsByRaceId.get(result.raceId) ?? [];
+    bucket.push(result);
+    resultsByRaceId.set(result.raceId, bucket);
+  }
+
+  // Process races in chronological order so ratings compound correctly
+  // over the "season", exactly as they would with real scraped imports.
+  const orderedRaces = insertedRaces
+    .slice()
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  for (const race of orderedRaces) {
+    const raceResults = resultsByRaceId.get(race.id) ?? [];
+
+    const preview = {
+      source: "seed",
+      raceName: race.name,
+      results: raceResults.map((r) => ({
+        runnerName: runnerById.get(r.runnerId)!.name,
+        position: r.position,
+        finishTimeSeconds: r.finishTimeSeconds,
+        dnf: r.dnf,
+        birthYear: null,
+        gender: null,
+        country: null,
+        ageCategory: null,
+      })),
+    };
+
+    await importFromPreview(race.id, preview as any);
+  }
+
+  console.log(`Seeded ${insertedRunners.length} runners, ${insertedRaces.length} races, and ${results.length} results via the real Elo pipeline.`);
 }
 
 main().catch((error) => {

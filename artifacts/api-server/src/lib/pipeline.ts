@@ -4,13 +4,16 @@
  * How it works:
  *  1. Resolve every runner in the scraped field (create or find by name+birthYear).
  *  2. Snapshot everyone's rating BEFORE any updates.
- *  3. Compute pairwise Elo deltas for the whole field in one pass.
+ *  3. Compute pairwise Elo deltas (as % changes) for the whole field in one pass.
  *  4. Apply all deltas atomically (no runner's new rating affects another's calc).
- *  5. Persist per-race Elo delta into results.points (can be negative).
+ *  5. Persist per-race delta into results.points (can be negative).
  *  6. Update aggregate stats (totalRaces, bestFinish, enduranceLevel).
  *  7. Mark race complete and recompute global ranks.
  *
- * Async job registry lets callers fire-and-forget then poll for status.
+ * Import jobs are queued and run strictly ONE AT A TIME (not in parallel).
+ * This guarantees each race's Elo calculation sees the true, fully-updated
+ * ratings from every previously-imported race — no lost updates from
+ * concurrent read-then-write races.
  */
 import { db, racesTable, resultsTable, runnersTable } from "@workspace/db";
 import { eq, desc, ilike, and } from "drizzle-orm";
@@ -77,7 +80,6 @@ async function resolveRunner(
       .from(runnersTable)
       .where(and(ilike(runnersTable.name, name), eq(runnersTable.birthYear, birthYear)));
     if (row) {
-      // Fill in any missing profile fields
       const updates: Record<string, unknown> = {};
       if (!row.gender && gender) updates.gender = gender;
       if (!row.country && country) updates.country = country;
@@ -103,14 +105,14 @@ async function resolveRunner(
     return { runnerId: row.id, created: false };
   }
 
-  // 3. Create new runner — starting Elo 1500
+  // 3. Create new runner — starting rating 200 (lowered from 1500)
   const currentYear = new Date().getFullYear();
   const age = birthYear ? currentYear - birthYear : null;
   const [newRunner] = await db.insert(runnersTable).values({
     name,
     country: country ?? "Unknown",
     gender: gender ?? "M",
-    rating: "1500",
+    rating: "200",
     ratingChange: "0",
     rank: 0,
     totalRaces: 0,
@@ -144,7 +146,6 @@ export async function importFromPreview(
   let runnersUpdated = 0;
 
   // ── Pass 1: resolve all runners, snapshot their PRE-RACE ratings ─────────────
-  // We must collect all ratings BEFORE updating any, so pairwise Elo is fair.
   const resolvedField: Array<{
     runnerId: number;
     preRaceRating: number;
@@ -174,34 +175,42 @@ export async function importFromPreview(
     });
   }
 
-  // ── Pass 2: compute all pairwise Elo deltas using PRE-RACE ratings ───────────
+  // ── Pass 2: compute all pairwise deltas (as %) using PRE-RACE ratings ────────
   const eloField: FieldEntry[] = resolvedField.map(r => ({
     runnerId: r.runnerId,
     rating: r.preRaceRating,
     position: r.position,
     dnf: r.dnf,
+    finishTimeSeconds: r.finishTimeSeconds,
   }));
   const eloDeltas = computeEloChanges(eloField, difficultyScore);
 
-  // ── Pass 3: apply Elo deltas + persist results ───────────────────────────────
+  // ── Pass 3: apply deltas + persist results ───────────────────────────────────
   let resultsCreated = 0;
 
   for (const r of resolvedField) {
-    const delta = eloDeltas.get(r.runnerId) ?? 0;
-    const newRating = Math.max(100, r.preRaceRating + delta); // Floor at 100
+    const delta = eloDeltas.get(r.runnerId) ?? 0; // interpreted as a % change
+
+    const enduranceLevel = computeEnduranceLevel(winnerTimeSeconds, r.finishTimeSeconds);
+    // Small nudge based on endurance level: closer to winner's pace → slightly
+    // bigger delta; further off → slightly smaller. Ranges roughly 0.9–1.1x.
+    const elFactor = 0.9 + 0.2 * Math.min(enduranceLevel / 1000, 1);
+    const adjustedDelta = delta * elFactor;
+
+    // Percentage-based update — no artificial ceiling, floor at 0.
+    const newRating = Math.max(0, r.preRaceRating * (1 + adjustedDelta / 100));
 
     // Idempotent result upsert
     await db.delete(resultsTable)
       .where(and(eq(resultsTable.runnerId, r.runnerId), eq(resultsTable.raceId, raceId)));
 
-    // Store Elo delta in points (can be negative — reflects real performance)
     await db.insert(resultsTable).values({
       runnerId: r.runnerId,
       raceId,
       position: r.position,
       finishTimeSeconds: r.finishTimeSeconds,
       dnf: r.dnf,
-      points: String(delta),          // Elo delta for this race
+      points: String(adjustedDelta),          // % delta for this race
     });
 
     resultsCreated++;
@@ -212,11 +221,9 @@ export async function importFromPreview(
     const bestFinish = finishes.length ? Math.min(...finishes.map(x => x.position!)) : null;
     const totalRaces = allResults.length;
 
-    const enduranceLevel = computeEnduranceLevel(winnerTimeSeconds, r.finishTimeSeconds);
-
     await db.update(runnersTable).set({
       rating: String(newRating),
-      ratingChange: String(delta),
+      ratingChange: String(adjustedDelta),
       totalRaces,
       bestFinish,
       enduranceLevel: enduranceLevel > 0 ? String(enduranceLevel) : undefined,
@@ -229,7 +236,7 @@ export async function importFromPreview(
     finishersCount: totalFinishers,
   }).where(eq(racesTable.id, raceId));
 
-  // ── Recompute global ranks by Elo rating ──────────────────────────────────────
+  // ── Recompute global ranks ────────────────────────────────────────────────────
   const allRunners = await db.select().from(runnersTable).orderBy(desc(runnersTable.rating));
   for (let i = 0; i < allRunners.length; i++) {
     await db.update(runnersTable).set({ rank: i + 1 }).where(eq(runnersTable.id, allRunners[i].id));
@@ -240,7 +247,9 @@ export async function importFromPreview(
   return { resultsCreated, runnersCreated, runnersUpdated, difficultyScore, source: preview.source, raceName: preview.raceName };
 }
 
-// ─── Async wrapper ────────────────────────────────────────────────────────────
+// ─── Async wrapper — imports run strictly ONE AT A TIME ───────────────────────
+
+let importQueue: Promise<unknown> = Promise.resolve();
 
 export function startImportJob(raceId: number, preview: ScrapePreview): ImportJob {
   pruneOldJobs();
@@ -254,7 +263,9 @@ export function startImportJob(raceId: number, preview: ScrapePreview): ImportJo
   };
   jobs.set(job.id, job);
 
-  (async () => {
+  // Chain onto the queue so this import only starts once every
+  // previously-queued import has fully finished.
+  importQueue = importQueue.then(async () => {
     job.status = "running";
     try {
       const result = await importFromPreview(raceId, preview);
@@ -269,7 +280,7 @@ export function startImportJob(raceId: number, preview: ScrapePreview): ImportJo
       job.finishedAt = new Date();
       logger.error({ jobId: job.id, raceId, err: job.error }, "Async import job failed");
     }
-  })();
+  });
 
   return job;
 }
