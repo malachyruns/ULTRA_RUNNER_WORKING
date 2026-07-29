@@ -19,7 +19,7 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
             <Link href="/" className="flex items-center gap-2 font-bold text-xl tracking-tight text-white">
-              <Activity className="h-6 w-6 text-[#FF5500]" />
+              <Activity className="h-6 w-6 text-[#6366F1]" />
               <span>ULTRARANK</span>
             </Link>
             
@@ -40,7 +40,7 @@ export function Navbar() {
           <div className="flex items-center">
             <Link
               href={organizer ? "/portal/dashboard" : "/portal/login"}
-              className="inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-neutral-900 px-3 py-1.5 text-sm font-medium text-zinc-400 transition-all duration-200 hover:border-orange-500 hover:text-white hover:shadow-[0_0_0_1px_rgba(249,115,22,0.14),0_0_18px_rgba(249,115,22,0.12)] active:scale-95"
+              className="inline-flex items-center gap-2 rounded-full border border-neutral-800 bg-transparent px-3 py-1.5 text-sm font-medium text-zinc-400 transition-all duration-200 hover:border-indigo-500 hover:text-white hover:shadow-[0_0_0_1px_rgba(99,102,241,0.14),0_0_18px_rgba(99,102,241,0.12)] active:scale-95"
             >
               <NavIcon icon={UserCircle} />
               {organizer ? "Dashboard" : "Organiser Login"}
@@ -58,8 +58,8 @@ function navPillClass(location: string, href: string) {
   return [
     "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-all duration-200 active:scale-95",
     isActive
-      ? "border-orange-500 bg-orange-500/10 text-white shadow-[0_0_0_1px_rgba(249,115,22,0.16),0_0_20px_rgba(249,115,22,0.14)]"
-      : "border-neutral-800 bg-neutral-900 text-zinc-400 hover:border-orange-500/60 hover:bg-orange-500/10 hover:text-white hover:shadow-[0_0_0_1px_rgba(249,115,22,0.08),0_0_16px_rgba(249,115,22,0.08)]",
+      ? "border-[#6366F1] bg-[#6366F1]/10 text-white shadow-[0_0_0_1px_rgba(99,102,241,0.16),0_0_20px_rgba(99,102,241,0.14)]"
+      : "border-neutral-800 bg-neutral-900 text-zinc-400 hover:border-[#6366F1]/60 hover:bg-[#6366F1]/10 hover:text-white hover:shadow-[0_0_0_1px_rgba(99,102,241,0.08),0_0_16px_rgba(99,102,241,0.08)]",
   ].join(" ");
 }
 
