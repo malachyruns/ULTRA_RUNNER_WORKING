@@ -745,6 +745,30 @@ export const PortalScrapeImportAsyncBody = zod.object({
 
 
 /**
+ * @summary Scrape a URL, create a new race from the given details, and import the results
+ */
+
+
+
+export const PortalScrapeCreateImportBody = zod.object({
+  "name": zod.string().min(1),
+  "location": zod.string(),
+  "country": zod.string(),
+  "countryCode": zod.string().nullish(),
+  "date": zod.string(),
+  "distanceKm": zod.number(),
+  "category": zod.enum(['50k', '100k', '50mi', '100mi', '200mi', 'other']),
+  "surface": zod.enum(['trail', 'road', 'mountain', 'mixed']),
+  "totalElevationM": zod.number().nullish(),
+  "description": zod.string().nullish(),
+  "weatherConditions": zod.union([zod.literal('clear'),zod.literal('rain'),zod.literal('heat'),zod.literal('snow'),zod.literal('storm'),zod.literal(null)]).nullish(),
+  "technicalityRating": zod.number().nullish()
+}).and(zod.object({
+  "url": zod.string()
+}))
+
+
+/**
  * @summary Poll the status of a background import job
  */
 export const PortalGetJobParams = zod.object({

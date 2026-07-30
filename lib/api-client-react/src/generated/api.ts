@@ -50,6 +50,8 @@ import type {
   RunnerInput,
   RunnerStats,
   RunnerUpdate,
+  ScrapeAndCreateRaceInput,
+  ScrapeCreateImportResponse,
   ScrapeImportResponse,
   ScrapeInput,
   ScrapePreview,
@@ -2460,6 +2462,77 @@ export const usePortalScrapeImportAsync = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getPortalScrapeImportAsyncMutationOptions(options));
+    }
+
+export const getPortalScrapeCreateImportUrl = () => {
+
+
+
+
+  return `/api/portal/races/scrape-create-import`
+}
+
+/**
+ * @summary Scrape a URL, create a new race from the given details, and import the results
+ */
+export const portalScrapeCreateImport = async (scrapeAndCreateRaceInput: ScrapeAndCreateRaceInput, options?: RequestInit): Promise<ScrapeCreateImportResponse> => {
+
+  return customFetch<ScrapeCreateImportResponse>(getPortalScrapeCreateImportUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      scrapeAndCreateRaceInput,)
+  }
+);}
+
+
+
+
+export const getPortalScrapeCreateImportMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalScrapeCreateImport>>, TError,{data: BodyType<ScrapeAndCreateRaceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof portalScrapeCreateImport>>, TError,{data: BodyType<ScrapeAndCreateRaceInput>}, TContext> => {
+
+const mutationKey = ['portalScrapeCreateImport'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof portalScrapeCreateImport>>, {data: BodyType<ScrapeAndCreateRaceInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  portalScrapeCreateImport(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PortalScrapeCreateImportMutationResult = NonNullable<Awaited<ReturnType<typeof portalScrapeCreateImport>>>
+    export type PortalScrapeCreateImportMutationBody = BodyType<ScrapeAndCreateRaceInput>
+    export type PortalScrapeCreateImportMutationError = ErrorType<void>
+
+    /**
+ * @summary Scrape a URL, create a new race from the given details, and import the results
+ */
+export const usePortalScrapeCreateImport = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof portalScrapeCreateImport>>, TError,{data: BodyType<ScrapeAndCreateRaceInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof portalScrapeCreateImport>>,
+        TError,
+        {data: BodyType<ScrapeAndCreateRaceInput>},
+        TContext
+      > => {
+      return useMutation(getPortalScrapeCreateImportMutationOptions(options));
     }
 
 export const getPortalGetJobUrl = (jobId: string,) => {

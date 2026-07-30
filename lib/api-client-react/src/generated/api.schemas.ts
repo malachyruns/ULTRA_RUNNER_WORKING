@@ -545,6 +545,22 @@ export interface SearchCandidate {
   confidence: SearchCandidateConfidence;
 }
 
+export type ScrapeAndCreateRaceInput = OrganizerRaceInput & {
+  url: string;
+};
+
+export interface ScrapeCreateImportResponse {
+  raceId: number;
+  resultsCreated: number;
+  runnersCreated: number;
+  runnersUpdated: number;
+  difficultyScore: number;
+  /** @nullable */
+  source?: string | null;
+  /** @nullable */
+  raceName?: string | null;
+}
+
 export interface AsyncJobStarted {
   jobId: string;
   total: number;

@@ -53,6 +53,8 @@ export * from './runnerInput';
 export * from './runnerInputGender';
 export * from './runnerStats';
 export * from './runnerUpdate';
+export * from './scrapeAndCreateRaceInput';
+export * from './scrapeCreateImportResponse';
 export * from './scrapedResultItem';
 export * from './scrapeImportResponse';
 export * from './scrapeInput';

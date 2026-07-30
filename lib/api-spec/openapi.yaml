@@ -690,6 +690,27 @@ paths:
         "422":
           description: Scrape failed
 
+  /portal/races/scrape-create-import:
+    post:
+      operationId: portalScrapeCreateImport
+      tags: [portal]
+      summary: Scrape a URL, create a new race from the given details, and import the results
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScrapeAndCreateRaceInput"
+      responses:
+        "201":
+          description: Race created and results imported
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScrapeCreateImportResponse"
+        "422":
+          description: Scrape failed
+
   /portal/jobs/{jobId}:
     get:
       operationId: portalGetJob
@@ -1362,6 +1383,34 @@ components:
         confidence:
           type: string
           enum: [high, medium, low]
+
+    ScrapeAndCreateRaceInput:
+      allOf:
+        - $ref: "#/components/schemas/OrganizerRaceInput"
+        - type: object
+          required: [url]
+          properties:
+            url:
+              type: string
+
+    ScrapeCreateImportResponse:
+      type: object
+      required: [raceId, resultsCreated, runnersCreated, runnersUpdated, difficultyScore]
+      properties:
+        raceId:
+          type: integer
+        resultsCreated:
+          type: integer
+        runnersCreated:
+          type: integer
+        runnersUpdated:
+          type: integer
+        difficultyScore:
+          type: number
+        source:
+          type: ["string", "null"]
+        raceName:
+          type: ["string", "null"]
 
     AsyncJobStarted:
       type: object

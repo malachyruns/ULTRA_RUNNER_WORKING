@@ -14,6 +14,7 @@ import {
 import { requireOrganizer } from "../middleware/requireOrganizer";
 import { computeDifficultyScore} from "../lib/difficulty";
 import { normalizeRunner, normalizeRace } from "./runners";
+import { importRaceResults } from "../lib/importRace";
 
 const router = Router();
 
@@ -164,65 +165,11 @@ router.post("/portal/races/:id/results", requireOrganizer, async (req, res) => {
   const difficultyScore = parseFloat(race.difficultyScore);
   const totalFinishers = results.filter(r => !r.dnf).length;
 
-  let runnersCreated = 0;
-  let runnersUpdated = 0;
-  let resultsCreated = 0;
-
-  for (const entry of results) {
-    // Find or create runner by name (case-insensitive match)
-    const [existingRunner] = await db
-      .select()
-      .from(runnersTable)
-      .where(ilike(runnersTable.name, entry.runnerName.trim()));
-
-    let runnerId: number;
-
-    if (existingRunner) {
-      runnerId = existingRunner.id;
-      runnersUpdated++;
-    } else {
-      const [newRunner] = await db.insert(runnersTable).values({
-        name: entry.runnerName.trim(),
-        country: entry.country ?? "Unknown",
-        gender: entry.gender ?? "M",
-        rating: "200",
-        rank: 0,
-        totalRaces: 0,
-        totalDistanceKm: "0",
-      }).returning();
-      runnerId = newRunner.id;
-      runnersCreated++;
-    }
-
-    // Delete any existing result for this runner in this race (allow re-submission)
-    await db.delete(resultsTable)
-      .where(and(eq(resultsTable.runnerId, runnerId), eq(resultsTable.raceId, raceId)));
-
-    await db.insert(resultsTable).values({
-      runnerId,
-      raceId,
-      position: entry.position ?? null,
-      finishTimeSeconds: entry.finishTimeSeconds ?? null,
-      dnf: entry.dnf ?? false,
-      points: String(points),
-    });
-
-    resultsCreated++;
-
-    // Update runner aggregates
-    const allResults = await db.select().from(resultsTable).where(eq(resultsTable.runnerId, runnerId));
-    const finishes = allResults.filter(r => !r.dnf && r.position);
-    const bestFinish = finishes.length ? Math.min(...finishes.map(r => r.position!)) : null;
-    const totalRaces = allResults.length;
-    const totalPoints = allResults.reduce((acc, r) => acc + parseFloat(r.points), 0);
-    const newRating = 200 + totalPoints;
-
-    await db.update(runnersTable).set({
-      totalRaces,
-      bestFinish,
-      rating: String(newRating),
-    }).where(eq(runnersTable.id, runnerId));
-  }
+  const importSummary = await importRaceResults(
+    raceId,
+    results,
+    difficultyScore
+  );
 
   // Update race metadata
   await db.update(racesTable).set({
@@ -236,7 +183,7 @@ router.post("/portal/races/:id/results", requireOrganizer, async (req, res) => {
     await db.update(runnersTable).set({ rank: i + 1 }).where(eq(runnersTable.id, allRunners[i].id));
   }
 
-  res.json({ resultsCreated, runnersCreated, runnersUpdated, difficultyScore });
+  res.json(importSummary);
 });
 
 export default router;
