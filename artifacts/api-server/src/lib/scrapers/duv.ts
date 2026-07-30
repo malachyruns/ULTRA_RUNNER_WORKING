@@ -52,15 +52,20 @@ export async function scrapeDuv(url: string): Promise<ScrapePreview> {
       if (cells.length < 2) return;
 
       const rankStr = rankIdx >= 0 ? cells[rankIdx] ?? "" : cells[0] ?? "";
+      const timeStr  = perfIdx >= 0 ? cells[perfIdx] ?? "" : "";
+
+      // Check both the rank column AND the performance column for non-finisher markers
       const isDnf = rankStr.toUpperCase().includes("DNF") ||
-        cells.some(c => c.toUpperCase() === "DNF");
+        timeStr.toUpperCase().includes("DNF") ||
+        timeStr.toUpperCase().includes("DNS") ||
+        timeStr.toUpperCase().includes("DSQ") ||
+        cells.some(c => ["DNF", "DNS", "DSQ"].includes(c.toUpperCase()));
 
       const nameRaw = nameIdx >= 0 ? cells[nameIdx] ?? "" : cells[2] ?? "";
       const name = nameRaw.trim();
       if (!name) return;
 
       const position = isDnf ? null : (parseInt(rankStr, 10) || null);
-      const timeStr  = perfIdx >= 0 ? cells[perfIdx] ?? "" : "";
       const finishTimeSeconds = isDnf ? null : parseTimeToSeconds(timeStr);
       const nat = natIdx >= 0 ? cells[natIdx]?.trim() || null : null;
       const sexRaw = sexIdx >= 0 ? cells[sexIdx]?.trim().toUpperCase() : null;

@@ -158,6 +158,7 @@ function normalizeRunner(r: typeof runnersTable.$inferSelect) {
     countryCode: r.countryCode ?? null,
     gender: r.gender,
     age: r.age ?? null,
+    ageCategory: r.ageCategory ?? null,
     bio: r.bio ?? null,
     rating: parseFloat(r.rating),
     rank: r.rank,
@@ -201,6 +202,7 @@ function normalizeResult(r: typeof resultsTable.$inferSelect) {
     finishTimeSeconds: r.finishTimeSeconds ?? null,
     dnf: r.dnf,
     points: parseFloat(r.points),
+    ratingAfter: r.ratingAfter ? parseFloat(r.ratingAfter) : null,
     createdAt: r.createdAt.toISOString(),
   };
 }

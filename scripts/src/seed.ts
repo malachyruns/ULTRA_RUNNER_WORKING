@@ -1,6 +1,5 @@
 import { db, racesTable, resultsTable, runnersTable } from "@workspace/db";
 import { eq, inArray, or } from "drizzle-orm";
-import { importFromPreview } from "../../artifacts/api-server/src/lib/pipeline";
 
 type SeedRunner = {
   name: string;
@@ -39,60 +38,67 @@ type SeededResult = {
   dnf: boolean;
 };
 
-const seedKey = "ultraranker-testing-season-v3";
+const seedKey = "ultraranker-dynamic-season-v4";
 
-const runners: SeedRunner[] = [
-  { name: "Maya Chen", country: "United States", countryCode: "US", gender: "F", age: 29, birthYear: 1997, ageCategory: "25-29", bio: "Mountain runner with a patient uphill rhythm.", hiddenAbility: 93 },
-  { name: "Eli Njoroge", country: "Kenya", countryCode: "KE", gender: "M", age: 34, birthYear: 1992, ageCategory: "30-34", bio: "Efficient climber who stays smooth on rolling courses.", hiddenAbility: 96 },
-  { name: "Sofia Alvarez", country: "Spain", countryCode: "ES", gender: "F", age: 41, birthYear: 1985, ageCategory: "40-44", bio: "Experienced endurance runner with strong late-race pace.", hiddenAbility: 91 },
-  { name: "Lukas Weber", country: "Germany", countryCode: "DE", gender: "M", age: 37, birthYear: 1989, ageCategory: "35-39", bio: "Technical trail specialist with a careful downhill style.", hiddenAbility: 88 },
-  { name: "Aiko Tanaka", country: "Japan", countryCode: "JP", gender: "F", age: 31, birthYear: 1995, ageCategory: "30-34", bio: "Compact, efficient runner who thrives on steep gradients.", hiddenAbility: 94 },
-  { name: "Mateo Silva", country: "Brazil", countryCode: "BR", gender: "M", age: 28, birthYear: 1998, ageCategory: "25-29", bio: "Heat-tolerant athlete with a strong finishing kick.", hiddenAbility: 86 },
-  { name: "Ines Novak", country: "Croatia", countryCode: "HR", gender: "F", age: 36, birthYear: 1990, ageCategory: "35-39", bio: "Steady athlete who handles long runnable sections well.", hiddenAbility: 89 },
-  { name: "Omar Haddad", country: "Morocco", countryCode: "MA", gender: "M", age: 33, birthYear: 1993, ageCategory: "30-34", bio: "Fast starter with a good sense of pacing in dry conditions.", hiddenAbility: 87 },
-  { name: "Nadia Petrova", country: "Bulgaria", countryCode: "BG", gender: "F", age: 42, birthYear: 1984, ageCategory: "40-44", bio: "Veteran ultrarunner known for consistent aid-station splits.", hiddenAbility: 85 },
-  { name: "Henrik Larsen", country: "Norway", countryCode: "NO", gender: "M", age: 38, birthYear: 1988, ageCategory: "35-39", bio: "Cool-weather specialist with strong climbing form.", hiddenAbility: 92 },
-  { name: "Priya Menon", country: "India", countryCode: "IN", gender: "F", age: 30, birthYear: 1996, ageCategory: "30-34", bio: "Durable runner who manages effort well over long efforts.", hiddenAbility: 90 },
-  { name: "Javier Costa", country: "Portugal", countryCode: "PT", gender: "M", age: 35, birthYear: 1991, ageCategory: "35-39", bio: "Technical descender with a calm race rhythm.", hiddenAbility: 84 },
-  { name: "Leila Mansour", country: "Tunisia", countryCode: "TN", gender: "F", age: 27, birthYear: 1999, ageCategory: "25-29", bio: "Quick on flatter runnable trails and exposed ridgelines.", hiddenAbility: 83 },
-  { name: "Tariq Saleh", country: "Jordan", countryCode: "JO", gender: "M", age: 40, birthYear: 1986, ageCategory: "40-44", bio: "Experienced desert runner with a disciplined fueling plan.", hiddenAbility: 82 },
-  { name: "Anika Rao", country: "New Zealand", countryCode: "NZ", gender: "F", age: 32, birthYear: 1994, ageCategory: "30-34", bio: "All-around mover who handles variable terrain with ease.", hiddenAbility: 95 },
-  { name: "Bastian Frei", country: "Switzerland", countryCode: "CH", gender: "M", age: 39, birthYear: 1987, ageCategory: "35-39", bio: "Alpine runner with strong uphill economy.", hiddenAbility: 97 },
-  { name: "Chloe Dubois", country: "France", countryCode: "FR", gender: "F", age: 26, birthYear: 2000, ageCategory: "25-29", bio: "Aggressive racer who can surprise on fast descents.", hiddenAbility: 81 },
-  { name: "Petar Stojanovic", country: "Serbia", countryCode: "RS", gender: "M", age: 44, birthYear: 1982, ageCategory: "45-49", bio: "Strong in late race grind and long technical climbs.", hiddenAbility: 86 },
-  { name: "Rina Sato", country: "Japan", countryCode: "JP", gender: "F", age: 29, birthYear: 1997, ageCategory: "25-29", bio: "Precise mountain racer with excellent cadence control.", hiddenAbility: 93 },
-  { name: "Kwame Okoro", country: "Ghana", countryCode: "GH", gender: "M", age: 31, birthYear: 1995, ageCategory: "30-34", bio: "Explosive runner who often gains time on runnable sections.", hiddenAbility: 88 },
-  { name: "Lucia Bianchi", country: "Italy", countryCode: "IT", gender: "F", age: 37, birthYear: 1989, ageCategory: "35-39", bio: "Mountain-mannered racer with reliable pacing and fueling.", hiddenAbility: 90 },
-  { name: "Mateusz Kowalski", country: "Poland", countryCode: "PL", gender: "M", age: 34, birthYear: 1992, ageCategory: "30-34", bio: "Patient grinder who keeps moving in tough weather.", hiddenAbility: 84 },
-  { name: "Sara Holm", country: "Sweden", countryCode: "SE", gender: "F", age: 28, birthYear: 1998, ageCategory: "25-29", bio: "Cool-climate athlete with strong mid-race consistency.", hiddenAbility: 87 },
-  { name: "Diego Fernandez", country: "Chile", countryCode: "CL", gender: "M", age: 33, birthYear: 1993, ageCategory: "30-34", bio: "Mountain runner who handles long climbs and thin air well.", hiddenAbility: 91 },
-  { name: "Ana Ribeiro", country: "Argentina", countryCode: "AR", gender: "F", age: 38, birthYear: 1988, ageCategory: "35-39", bio: "Tactical runner with reliable all-day endurance.", hiddenAbility: 85 },
-  { name: "Noah Kim", country: "South Korea", countryCode: "KR", gender: "M", age: 30, birthYear: 1996, ageCategory: "30-34", bio: "Efficient mover with strong technical descents.", hiddenAbility: 89 },
-  { name: "Hana Kolarova", country: "Czech Republic", countryCode: "CZ", gender: "F", age: 41, birthYear: 1985, ageCategory: "40-44", bio: "Veteran mountain racer with sharp race instincts.", hiddenAbility: 84 },
-  { name: "Suleiman Ahmed", country: "Ethiopia", countryCode: "ET", gender: "M", age: 27, birthYear: 1999, ageCategory: "25-29", bio: "Smooth climber with a light stride over rough terrain.", hiddenAbility: 94 },
-  { name: "Mina Hassan", country: "Egypt", countryCode: "EG", gender: "F", age: 35, birthYear: 1991, ageCategory: "35-39", bio: "Heat-adapted runner who stays measured in long efforts.", hiddenAbility: 82 },
-  { name: "Jonas Eriksson", country: "Finland", countryCode: "FI", gender: "M", age: 43, birthYear: 1983, ageCategory: "40-44", bio: "Steady tempo runner with good durability in rough conditions.", hiddenAbility: 86 },
-  { name: "Marta Nowak", country: "Poland", countryCode: "PL", gender: "F", age: 32, birthYear: 1994, ageCategory: "30-34", bio: "Balanced racer who rarely blows up late in a race.", hiddenAbility: 88 },
-  { name: "Rafael Mendes", country: "Mexico", countryCode: "MX", gender: "M", age: 29, birthYear: 1997, ageCategory: "25-29", bio: "Fast on mixed surfaces with a strong closing surge.", hiddenAbility: 90 },
-  { name: "Elena Varga", country: "Romania", countryCode: "RO", gender: "F", age: 40, birthYear: 1986, ageCategory: "40-44", bio: "Crafty mountain runner who keeps effort even.", hiddenAbility: 83 },
-  { name: "Arman Demir", country: "Turkey", countryCode: "TR", gender: "M", age: 36, birthYear: 1990, ageCategory: "35-39", bio: "Strong on rolling courses and long runnable climbs.", hiddenAbility: 85 },
-  { name: "Zara Khalil", country: "United Arab Emirates", countryCode: "AE", gender: "F", age: 31, birthYear: 1995, ageCategory: "30-34", bio: "Heat-management specialist who starts conservatively.", hiddenAbility: 81 },
-  { name: "Samuel Tadesse", country: "Ethiopia", countryCode: "ET", gender: "M", age: 28, birthYear: 1998, ageCategory: "25-29", bio: "Ascender with excellent rhythm on long climbs.", hiddenAbility: 96 },
-  { name: "Clara Meyer", country: "Austria", countryCode: "AT", gender: "F", age: 34, birthYear: 1992, ageCategory: "30-34", bio: "Technical mountain specialist with strong downhill control.", hiddenAbility: 89 },
-  { name: "Julian Becker", country: "Netherlands", countryCode: "NL", gender: "M", age: 27, birthYear: 1999, ageCategory: "25-29", bio: "Fast, economical runner who does well on runnable course profiles.", hiddenAbility: 80 },
-  { name: "Fatima El Idrissi", country: "Morocco", countryCode: "MA", gender: "F", age: 39, birthYear: 1987, ageCategory: "35-39", bio: "Smart pacer with a habit of overtaking late.", hiddenAbility: 87 },
-  { name: "Leandro Costa", country: "Uruguay", countryCode: "UY", gender: "M", age: 42, birthYear: 1984, ageCategory: "40-44", bio: "Experienced ultrarunner with a smooth, controlled effort.", hiddenAbility: 82 },
-  { name: "Ewa Zielinska", country: "Poland", countryCode: "PL", gender: "F", age: 33, birthYear: 1993, ageCategory: "30-34", bio: "Strong aerobic base and reliable negative splits.", hiddenAbility: 91 },
-  { name: "Kaito Nakamura", country: "Japan", countryCode: "JP", gender: "M", age: 26, birthYear: 2000, ageCategory: "25-29", bio: "Young runner with sharp acceleration on open sections.", hiddenAbility: 88 },
-  { name: "Helena Costa", country: "Portugal", countryCode: "PT", gender: "F", age: 45, birthYear: 1981, ageCategory: "45-49", bio: "Veteran racer who knows how to manage long mountain days.", hiddenAbility: 84 },
-  { name: "David Okafor", country: "Nigeria", countryCode: "NG", gender: "M", age: 37, birthYear: 1989, ageCategory: "35-39", bio: "Durable runner with a strong threshold and good composure.", hiddenAbility: 85 },
-  { name: "Nora Andersen", country: "Denmark", countryCode: "DK", gender: "F", age: 30, birthYear: 1996, ageCategory: "30-34", bio: "Efficient all-round runner who handles wind and rain well.", hiddenAbility: 86 },
-  { name: "Tomasz Lewandowski", country: "Poland", countryCode: "PL", gender: "M", age: 41, birthYear: 1985, ageCategory: "40-44", bio: "Steady, no-nonsense athlete with good long-run stamina.", hiddenAbility: 83 },
-  { name: "Malia Kealoha", country: "United States", countryCode: "US", gender: "F", age: 28, birthYear: 1998, ageCategory: "25-29", bio: "Ocean-to-mountain runner with strong leg speed.", hiddenAbility: 90 },
-  { name: "Adrian Popescu", country: "Romania", countryCode: "RO", gender: "M", age: 35, birthYear: 1991, ageCategory: "35-39", bio: "Tough climber who stays composed when the pace rises.", hiddenAbility: 87 },
-  { name: "Farah Al-Khatib", country: "Jordan", countryCode: "JO", gender: "F", age: 32, birthYear: 1994, ageCategory: "30-34", bio: "Measured competitor with strong endurance and discipline.", hiddenAbility: 82 },
-  { name: "Ibrahim Rahman", country: "Bangladesh", countryCode: "BD", gender: "M", age: 38, birthYear: 1988, ageCategory: "35-39", bio: "Late-race grinder with a disciplined, even effort.", hiddenAbility: 83 },
-];
+// Helper to pick a random item from an array
+function sample<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+// Generate dynamic, multi-tier runner profiles
+function generateRunners(count: number): SeedRunner[] {
+  const firstNames = [
+    "Alex", "Sam", "Jordan", "Taylor", "Morgan", "Chris", "Pat", "Riley", "Casey", 
+    "Jamie", "Elena", "Marcus", "Kaito", "Suleiman", "Chloe", "Mateo", "Aiko", 
+    "Sofia", "Lukas", "Nadia", "Henrik", "Priya", "Javier", "Leila", "Tariq"
+  ];
+  const lastNames = [
+    "Smith", "García", "Kim", "Müller", "Nyang", "Rossi", "Tanaka", "Silva", 
+    "Kowalski", "Chen", "Dubois", "Larsen", "Alvarez", "Njoroge", "Weber", "Novak"
+  ];
+  const countries = [
+    { country: "United States", code: "US" },
+    { country: "France", code: "FR" },
+    { country: "Spain", code: "ES" },
+    { country: "Japan", code: "JP" },
+    { country: "Kenya", code: "KE" },
+    { country: "United Kingdom", code: "GB" },
+    { country: "Switzerland", code: "CH" },
+    { country: "Norway", code: "NO" },
+    { country: "Canada", code: "CA" },
+    { country: "Germany", code: "DE" }
+  ];
+
+  const generated: SeedRunner[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const fn = sample(firstNames);
+    const ln = sample(lastNames);
+    const c = sample(countries);
+    const gender: "M" | "F" = Math.random() > 0.5 ? "M" : "F";
+    const birthYear = 1975 + Math.floor(Math.random() * 30); // Ages ~21 to 51
+    const currentYear = 2026;
+    const age = currentYear - birthYear;
+
+    // Ability distribution: Gaussian-like distribution (most runners 50-75, few elites 90-98)
+    const rawAbility = (Math.random() + Math.random() + Math.random()) / 3;
+    const hiddenAbility = Math.round(45 + rawAbility * 53); // Range: 45 to 98
+
+    generated.push({
+      name: `${fn} ${ln} ${i + 1}`,
+      country: c.country,
+      countryCode: c.code,
+      gender,
+      age,
+      birthYear,
+      ageCategory: `${Math.floor(age / 5) * 5}-${Math.floor(age / 5) * 5 + 4}`,
+      bio: "Automated test participant.",
+      hiddenAbility,
+    });
+  }
+
+  return generated;
+}
 
 const races: SeedRace[] = [
   { name: "North Peak Spring 50K", location: "Whistler", country: "Canada", countryCode: "CA", date: "2026-03-14", distanceKm: "50", category: "ultra", surface: "trail", totalElevationM: 2400, description: "Early-season mountain race with cold starts and long climbs.", status: "completed", weatherConditions: "Cold morning, damp forest trails", technicalityRating: 6, difficultyScore: "1.184" },
@@ -147,45 +153,48 @@ function abilityWeightForRace(race: SeedRace): number {
   return Math.round(48 + distance * 1.55 + race.totalElevationM / 65 + race.technicalityRating * 18);
 }
 
-function pickRaceIndices(runnerIndex: number): number[] {
-  const offsets = [0, 2, 5, 8];
-  return offsets.map((offset) => (runnerIndex + offset) % races.length);
-}
-
 /**
- * Generates realistic finish times and sorted positions for each race.
- * Does NOT compute points/ratings anymore — that's the real Elo
- * pipeline's job (see main(), which calls importFromPreview per race).
+ * Dynamically builds results based on realistic participation, performance variance, and DNF chances.
  */
-function buildSeedResults(
-  insertedRunners: Array<{ id: number; name: string }>,
-  insertedRaces: Array<{ id: number; name: string }>,
+function buildDynamicSeedResults(
+  insertedRunners: Array<{ id: number; name: string; hiddenAbility: number }>,
+  insertedRaces: Array<{ id: number; name: string; date: string; distanceKm: string; totalElevationM: number; technicalityRating: number; weatherConditions: string }>
 ): SeededResult[] {
-  const raceByName = new Map(insertedRaces.map((race) => [race.name, race]));
   const raw: Array<Omit<SeededResult, "position">> = [];
 
-  insertedRunners.forEach((runner, runnerIndex) => {
-    const runnerSeed = runners[runnerIndex];
-    const raceIndices = pickRaceIndices(runnerIndex);
+  insertedRaces.forEach((race) => {
+    const baseTime = computeRaceBaseTime(race as any);
+    const abilityWeight = abilityWeightForRace(race as any);
 
-    raceIndices.forEach((raceIndex) => {
-      const sourceRace = races[raceIndex];
-      const actualRace = raceByName.get(sourceRace.name)!;
-      const baseTime = computeRaceBaseTime(sourceRace);
-      const abilityWeight = abilityWeightForRace(sourceRace);
-      const deterministicNoise = seededUnit(`${seedKey}|${runner.name}|${actualRace.name}`);
-      const variationSeconds = Math.round((deterministicNoise - 0.5) * (Number(sourceRace.distanceKm) * 14));
-      const finishTimeSeconds = Math.max(5400, Math.round(baseTime + (100 - runnerSeed.hiddenAbility) * abilityWeight + variationSeconds));
+    insertedRunners.forEach((runner) => {
+      // 1. Dynamic Participation (~30-45% chance per runner to enter a race)
+      const participationChance = 0.25 + (runner.hiddenAbility / 220);
+      const raceHash = seededUnit(`${seedKey}|${runner.id}|${race.id}`);
 
-      raw.push({
-        runnerId: runner.id,
-        raceId: actualRace.id,
-        finishTimeSeconds,
-        dnf: false,
-      });
+      if (raceHash <= participationChance) {
+        // 2. Introduce DNF Chance (~3-5% chance of DNFing)
+        const dnfRoll = seededUnit(`dnf|${seedKey}|${runner.id}|${race.id}`);
+        const isDnf = dnfRoll < 0.04;
+
+        // 3. Performance Variance
+        const varianceFactor = (100 - runner.hiddenAbility) * 16;
+        const noise = (seededUnit(`time|${seedKey}|${runner.id}|${race.id}`) - 0.5) * varianceFactor;
+
+        const finishTimeSeconds = isDnf
+          ? 0
+          : Math.max(3600, Math.round(baseTime + (100 - runner.hiddenAbility) * abilityWeight + noise));
+
+        raw.push({
+          runnerId: runner.id,
+          raceId: race.id,
+          finishTimeSeconds,
+          dnf: isDnf,
+        });
+      }
     });
   });
 
+  // Group by race, sort finishers by time, and assign positions (DNFs at the end)
   const byRaceId = new Map<number, typeof raw>();
   for (const result of raw) {
     const bucket = byRaceId.get(result.raceId) ?? [];
@@ -195,9 +204,17 @@ function buildSeedResults(
 
   const ordered: SeededResult[] = [];
   for (const entries of byRaceId.values()) {
-    const sorted = entries.slice().sort((left, right) => left.finishTimeSeconds - right.finishTimeSeconds);
+    const sorted = entries.slice().sort((a, b) => {
+      if (a.dnf && !b.dnf) return 1;
+      if (!a.dnf && b.dnf) return -1;
+      return a.finishTimeSeconds - b.finishTimeSeconds;
+    });
+
     sorted.forEach((entry, index) => {
-      ordered.push({ ...entry, position: index + 1 });
+      ordered.push({
+        ...entry,
+        position: entry.dnf ? 0 : index + 1,
+      });
     });
   }
 
@@ -205,6 +222,11 @@ function buildSeedResults(
 }
 
 async function main() {
+  const { importFromPreview } = await import("../../artifacts/api-server/src/lib/pipeline");
+
+  // Generate 120 dynamic runners to build competitive race fields
+  const runners = generateRunners(120);
+
   const { insertedRunners, insertedRaces } = await db.transaction(async (tx) => {
     const existingRunnerIds = await tx
       .select({ id: runnersTable.id })
@@ -238,15 +260,21 @@ async function main() {
     }
 
     const insertedRunners = await tx.insert(runnersTable).values(
-      runners.map(({ hiddenAbility, ...runner }) => runner),
+      runners.map(({ hiddenAbility, ...runner }) => ({ ...runner, rating: "200", ratingChange: "0" })),
     ).returning();
 
     const insertedRaces = await tx.insert(racesTable).values(races).returning();
 
-    return { insertedRunners, insertedRaces };
+    // Map hidden ability back to inserted runner objects
+    const runnerWithAbility = insertedRunners.map((r, i) => ({
+      ...r,
+      hiddenAbility: runners[i].hiddenAbility,
+    }));
+
+    return { insertedRunners: runnerWithAbility, insertedRaces };
   });
 
-  const results = buildSeedResults(insertedRunners, insertedRaces);
+  const results = buildDynamicSeedResults(insertedRunners, insertedRaces as any);
   const runnerById = new Map(insertedRunners.map((r) => [r.id, r]));
 
   const resultsByRaceId = new Map<number, SeededResult[]>();
@@ -256,8 +284,7 @@ async function main() {
     resultsByRaceId.set(result.raceId, bucket);
   }
 
-  // Process races in chronological order so ratings compound correctly
-  // over the "season", exactly as they would with real scraped imports.
+  // Process races in chronological order so ratings compound correctly over time
   const orderedRaces = insertedRaces
     .slice()
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());

@@ -12,6 +12,7 @@ export const resultsTable = pgTable("results", {
   finishTimeSeconds: integer("finish_time_seconds"),
   dnf: boolean("dnf").notNull().default(false),
   points: numeric("points", { precision: 8, scale: 2 }).notNull().default("0"),
+  ratingAfter: numeric("rating_after", { precision: 10, scale: 3 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

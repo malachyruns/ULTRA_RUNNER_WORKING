@@ -185,7 +185,7 @@ router.post("/portal/races/:id/results", requireOrganizer, async (req, res) => {
         name: entry.runnerName.trim(),
         country: entry.country ?? "Unknown",
         gender: entry.gender ?? "M",
-        rating: "1000",
+        rating: "200",
         rank: 0,
         totalRaces: 0,
         totalDistanceKm: "0",
@@ -215,7 +215,7 @@ router.post("/portal/races/:id/results", requireOrganizer, async (req, res) => {
     const bestFinish = finishes.length ? Math.min(...finishes.map(r => r.position!)) : null;
     const totalRaces = allResults.length;
     const totalPoints = allResults.reduce((acc, r) => acc + parseFloat(r.points), 0);
-    const newRating = 1000 + totalPoints;
+    const newRating = 200 + totalPoints;
 
     await db.update(runnersTable).set({
       totalRaces,

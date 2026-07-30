@@ -100,7 +100,7 @@ export default function RunnerDetail() {
                     <LineChart data={derived.trendData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
                       <XAxis dataKey="race" tick={{ fill: "#a1a1aa", fontSize: 11 }} axisLine={{ stroke: "#27272a" }} tickLine={false} />
-                      <YAxis tick={{ fill: "#a1a1aa", fontSize: 11 }} axisLine={{ stroke: "#27272a" }} tickLine={false} width={36} />
+                      <YAxis tick={{ fill: "#a1a1aa", fontSize: 11 }} axisLine={{ stroke: "#27272a" }} tickLine={false} width={36} domain={['auto', 'auto']} />
                       <Tooltip
                         contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 12, color: "#fff" }}
                         labelStyle={{ color: "#a1a1aa" }}
@@ -278,11 +278,17 @@ function buildRunnerInsights(results: Array<{
   position?: number | null;
   dnf?: boolean;
   points: number;
+  ratingAfter?: number | string | null;
   race: { category: string; surface: string; name: string; date: string };
 }> ) {
   const ordered = results.slice().sort((left, right) => left.race.date.localeCompare(right.race.date));
-  const trendData: Array<{ race: string; rating: number }> = [];
-  let rating = 1500;
+  const trendData: Array<{ race: string; rating: number }> = ordered
+    .filter((result) => result.ratingAfter !== null && result.ratingAfter !== undefined)
+    .map((result) => ({
+      race: result.race.name,
+      rating: Math.round(Number(result.ratingAfter)),
+    }));
+
   let wins = 0;
   let podiums = 0;
   let topFive = 0;
@@ -290,9 +296,6 @@ function buildRunnerInsights(results: Array<{
   const terrainCounts: Record<string, number> = { trail: 0, road: 0, mountain: 0, mixed: 0 };
 
   for (const result of ordered) {
-    rating += Number(result.points || 0);
-    trendData.push({ race: result.race.name, rating: Math.round(rating) });
-
     if (!result.dnf && result.position) {
       if (result.position === 1) wins++;
       if (result.position <= 3) podiums++;

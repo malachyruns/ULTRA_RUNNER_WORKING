@@ -21,19 +21,27 @@ export interface ScrapePreview {
   results: ScrapedResult[];
 }
 
-/** Parse time strings like "23:45:12", "1:23:45:12" (d:h:m:s), "1d 23:45:12" to seconds */
+/** Parse time strings like "23:45:12", "1:23:45:12" (d:h:m:s), "1d 23:45:12", "10:23:45 h" to seconds */
 export function parseTimeToSeconds(raw: string): number | null {
-  if (!raw || raw.trim() === "" || raw === "DNF" || raw === "--") return null;
-  const s = raw.trim().toUpperCase();
+  if (!raw || raw.trim() === "") return null;
+  let s = raw.trim().toUpperCase();
 
-  // Format: "1D 23:45:12" (DUV day prefix)
-  const dayMatch = s.match(/^(\d+)D\s+(\d+):(\d+):(\d+)$/);
+  // Non-finisher markers show up in this column on some sites
+  if (s === "DNF" || s === "DNS" || s === "DSQ" || s === "--" || s === "N/A") return null;
+
+  // Strip trailing unit markers like " H" or " HOURS" (common on DUV: "10:23:45 h")
+  s = s.replace(/\s*H(OURS)?\s*$/, "").trim();
+
+  // Remove any remaining stray whitespace between numbers/colons
+  s = s.replace(/\s+/g, "");
+
+  // Format: "1D23:45:12" (DUV day prefix)
+  const dayMatch = s.match(/^(\d+)D(\d+):(\d+):(\d+)$/);
   if (dayMatch) {
     const [, d, h, m, sec] = dayMatch.map(Number);
     return d * 86400 + h * 3600 + m * 60 + sec;
   }
 
-  // Format: "1:23:45:12" (d:h:m:s)
   const parts = s.split(":");
   if (parts.length === 4) {
     const [d, h, m, sec] = parts.map(Number);

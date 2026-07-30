@@ -13,7 +13,7 @@ export const runnersTable = pgTable("runners", {
   ageCategory: text("age_category"),
   bio: text("bio"),
   enduranceLevel: numeric("endurance_level", { precision: 8, scale: 2 }),
-  rating: numeric("rating", { precision: 8, scale: 2 }).notNull().default("1500"),
+  rating: numeric("rating", { precision: 8, scale: 2 }).notNull().default("200"),
   ratingChange: numeric("rating_change", { precision: 8, scale: 2 }).notNull().default("0"),
   rank: integer("rank").notNull().default(0),
   totalRaces: integer("total_races").notNull().default(0),
