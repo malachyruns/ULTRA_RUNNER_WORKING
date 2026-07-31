@@ -1,7 +1,10 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
 import type { ScrapePreview, ScrapedResult } from "./types";
-import { parseTimeToSeconds, parseBirthYear, birthYearFromAge, normalizeAgeCategory } from "./types";
+import {
+  parseTimeToSeconds, parseBirthYear, birthYearFromAge, normalizeAgeCategory,
+  parseDuvDate, countryNameFromCode,
+} from "./types";
 
 const HEADERS = {
   "User-Agent": "Mozilla/5.0 (compatible; UltraRank/1.0; +https://ultrarank.run)",
@@ -12,17 +15,83 @@ export function isDuvUrl(url: string): boolean {
   return url.includes("statistik.d-u-v.org") || url.includes("d-u-v.org");
 }
 
+/** Find the value cell next to a bold label like "Date:", "Event:", "Distance:" */
+function labeledValue($: cheerio.CheerioAPI, label: string): string | null {
+  let value: string | null = null;
+  $("td, th").each((_, el) => {
+    const text = $(el).text().trim();
+    if (text.toLowerCase() === label.toLowerCase()) {
+      const next = $(el).next("td");
+      if (next.length) value = next.text().trim();
+    }
+  });
+  return value;
+}
+
 export async function scrapeDuv(url: string): Promise<ScrapePreview> {
   const resp = await axios.get(url, { headers: HEADERS, timeout: 15000 });
   const $ = cheerio.load(resp.data as string);
 
-  const rawTitle = $("title").text().trim() || $("h1, h2").first().text().trim();
-  const raceName = rawTitle.replace(/DUV.*$/i, "").trim() || null;
+  // ── Race metadata, read from DUV's labeled info table ──────────────────────
+  const rawDate = labeledValue($, "Date:");
+  const raceDate = rawDate ? parseDuvDate(rawDate) ?? rawDate : null;
 
-  const pageText = $("body").text();
-  const dateMatch = pageText.match(/\d{4}-\d{2}-\d{2}|\d{1,2}\.\d{1,2}\.\d{4}/);
-  const raceDate = dateMatch ? dateMatch[0] : null;
-  const raceLocation = $("td:contains('Place'), th:contains('Place')").next().first().text().trim() || null;
+  const rawEvent = labeledValue($, "Event:");
+  let raceName: string | null = null;
+  let raceCountryCode: string | null = null;
+  let raceCountry: string | null = null;
+  if (rawEvent) {
+    // Strip a trailing country code in parens, e.g. "... (GER)"
+    const countryMatch = rawEvent.match(/\(([A-Z]{2,3})\)\s*$/);
+    let nameOnly = rawEvent;
+    if (countryMatch) {
+      raceCountryCode = countryMatch[1];
+      raceCountry = countryNameFromCode(countryMatch[1]);
+      nameOnly = rawEvent.slice(0, countryMatch.index).trim();
+    }
+    // Strip a leading ordinal number, e.g. "1 Rund um Fehmarn Ultra" → "Rund um Fehmarn Ultra"
+    nameOnly = nameOnly.replace(/^\d+\s+/, "").trim();
+    raceName = nameOnly || null;
+  }
+
+  // Fallback to old title-based method only if the labeled row wasn't found
+  if (!raceName) {
+    const rawTitle = $("title").text().trim() || $("h1, h2").first().text().trim();
+    raceName = rawTitle.replace(/^DUV[\s\-:]*/i, "").trim() || null;
+  }
+
+  const rawDistance = labeledValue($, "Distance:");
+  let raceDistanceKm: number | null = null;
+  let raceSurface: string | null = null;
+  if (rawDistance) {
+    const kmMatch = rawDistance.match(/(\d+(?:\.\d+)?)\s*km/i);
+    if (kmMatch) raceDistanceKm = parseFloat(kmMatch[1]);
+    const lower = rawDistance.toLowerCase();
+    if (lower.includes("trail")) raceSurface = "trail";
+    else if (lower.includes("road")) raceSurface = "road";
+    else if (lower.includes("mountain")) raceSurface = "mountain";
+  }
+
+  // Location isn't labeled directly on this page — DUV tucks it into the
+  // "email this page" link's body text: "<race name>, <location>, <date>"
+  let raceLocation: string | null = null;
+  const mailtoHref = $("a[href^='mailto:']").first().attr("href") ?? "";
+  const bodyMatch = mailtoHref.match(/body=([^&]+)/);
+  if (bodyMatch) {
+    try {
+      const decoded = decodeURIComponent(bodyMatch[1]);
+      const lines = decoded.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const infoLine = lines.find(l => /\d{1,2}\.\d{1,2}\.\d{4}\s*$/.test(l));
+      if (infoLine) {
+        const parts = infoLine.split(",").map(p => p.trim());
+        if (parts.length >= 3) {
+          raceLocation = parts.slice(1, parts.length - 1).join(", ");
+        }
+      }
+    } catch {
+      // ignore malformed mailto content
+    }
+  }
 
   const results: ScrapedResult[] = [];
 
@@ -42,7 +111,6 @@ export async function scrapeDuv(url: string): Promise<ScrapePreview> {
     const nameIdx   = headers.findIndex(h => h.includes("name") || h.includes("athlete") || h.includes("runner"));
     const natIdx    = headers.findIndex(h => h.includes("nat") || h.includes("country") || h.includes("ctry"));
     const sexIdx    = headers.findIndex(h => h === "sex" || h === "gender" || h === "m/f" || h === "g");
-    // DUV commonly has "YOB" (Year Of Birth) and "Cat" (age category like "M40")
     const yobIdx    = headers.findIndex(h => h === "yob" || h.includes("birth") || h === "born" || h === "year");
     const catIdx    = headers.findIndex(h => h === "cat" || h === "category" || h === "ag" || h === "class");
 
@@ -54,7 +122,6 @@ export async function scrapeDuv(url: string): Promise<ScrapePreview> {
       const rankStr = rankIdx >= 0 ? cells[rankIdx] ?? "" : cells[0] ?? "";
       const timeStr  = perfIdx >= 0 ? cells[perfIdx] ?? "" : "";
 
-      // Check both the rank column AND the performance column for non-finisher markers
       const isDnf = rankStr.toUpperCase().includes("DNF") ||
         timeStr.toUpperCase().includes("DNF") ||
         timeStr.toUpperCase().includes("DNS") ||
@@ -73,19 +140,16 @@ export async function scrapeDuv(url: string): Promise<ScrapePreview> {
         ? (sexRaw === "W" ? "F" : sexRaw)
         : null;
 
-      // Year of birth (DUV exports this directly as a 4-digit year)
       let birthYear: number | null = null;
       if (yobIdx >= 0) {
         const raw = cells[yobIdx] ?? "";
         birthYear = parseBirthYear(raw);
-        // Fallback: if it looks like an age
         if (!birthYear) {
           const age = parseInt(raw, 10);
           if (!isNaN(age) && age > 0 && age < 120) birthYear = birthYearFromAge(age);
         }
       }
 
-      // Age category (DUV uses "M40", "W50", "M-JUN", etc.)
       const ageCategory = catIdx >= 0 ? normalizeAgeCategory(cells[catIdx] ?? "") : null;
 
       results.push({ runnerName: name, position, finishTimeSeconds, gender, country: nat, dnf: isDnf, birthYear, ageCategory });
@@ -96,6 +160,10 @@ export async function scrapeDuv(url: string): Promise<ScrapePreview> {
     raceName,
     raceDate,
     raceLocation,
+    raceCountry,
+    raceCountryCode,
+    raceDistanceKm,
+    raceSurface,
     source: "DUV Ultramarathon Statistics",
     url,
     totalFound: results.length,

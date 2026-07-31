@@ -634,34 +634,43 @@ paths:
         "422":
           description: Scrape failed or site not supported
 
-  /portal/races/{id}/scrape-import:
+  /portal/scrape-import:
     post:
-      operationId: portalScrapeImport
+      operationId: portalAutoCreateRaceImport
       tags: [portal]
-      summary: Scrape results from a URL and import them for a race
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
+      summary: Create a race and import results from a URL
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ScrapeInput"
+              type: object
+              required:
+                - url
+              properties:
+                url:
+                  type: string
+                  format: uri
       responses:
         "200":
           description: Import successful
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ScrapeImportResponse"
-        "403":
-          description: Not your race
-        "422":
-          description: Scrape failed
+                type: object
+                properties:
+                  resultsCreated:
+                    type: integer
+                  runnersCreated:
+                    type: integer
+                  runnersUpdated:
+                    type: integer
+                  raceId:
+                    type: integer
+                  raceName:
+                    type: string
+                  source:
+                    type: string
 
   /portal/races/{id}/scrape-import-async:
     post:
@@ -807,6 +816,8 @@ components:
           enum: [M, F, X]
         age:
           type: ["integer", "null"]
+        ageCategory:
+          type: ["string", "null"]
         bio:
           type: ["string", "null"]
         rating:

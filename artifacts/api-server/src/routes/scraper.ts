@@ -26,29 +26,64 @@ router.post("/portal/scrape", requireOrganizer, async (req, res) => {
   }
 });
 
-// ─── Synchronous import ─────────────────────────────────────────────────────
+// ─── Automatic race creation + import ───────────────────────────────────────
 
-router.post("/portal/races/:id/scrape-import", requireOrganizer, async (req, res) => {
-  const raceId = parseInt(req.params["id"] as string, 10);
+router.post("/portal/scrape-import", requireOrganizer, async (req, res) => {
   const { url } = ScrapeUrlInput.parse(req.body);
 
-  const [race] = await db.select().from(racesTable).where(eq(racesTable.id, raceId));
-  if (!race) { res.status(404).json({ error: "Race not found" }); return; }
-  if (race.organizerId !== req.session.organizerId) { res.status(403).json({ error: "Not your race" }); return; }
-
   let preview;
+
   try {
     preview = await scrapeUrl(url);
   } catch (err: unknown) {
-    res.status(422).json({ error: err instanceof Error ? err.message : "Scrape failed" });
+    res.status(422).json({
+      error: err instanceof Error ? err.message : "Scrape failed"
+    });
     return;
   }
 
+
   try {
-    const result = await importFromPreview(raceId, preview);
-    res.json(result);
+
+    const [race] = await db.insert(racesTable).values({
+      name: preview.raceName ?? "Imported Race",
+      location: preview.raceLocation ?? "Unknown",
+      country: "Unknown",
+      countryCode: null,
+      date: preview.raceDate ?? new Date().toISOString().split("T")[0],
+      distanceKm: "100",
+      category: "ultra",
+      surface: "trail",
+      totalElevationM: null,
+      description: `Imported from ${preview.source}`,
+      weatherConditions: null,
+      technicalityRating: null,
+      difficultyScore: "1",
+      status: "upcoming",
+      organizerId: req.session.organizerId!,
+    }).returning();
+
+
+    const result = await importFromPreview(
+      race.id,
+      preview
+    );
+
+
+    res.json({
+      ...result,
+      raceId: race.id,
+      raceName: race.name,
+      source: preview.source,
+    });
+
+
   } catch (err: unknown) {
-    res.status(500).json({ error: err instanceof Error ? err.message : "Import failed" });
+
+    res.status(500).json({
+      error: err instanceof Error ? err.message : "Import failed"
+    });
+
   }
 });
 

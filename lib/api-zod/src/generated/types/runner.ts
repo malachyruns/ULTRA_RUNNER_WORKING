@@ -17,6 +17,8 @@ export interface Runner {
   /** @nullable */
   age?: number | null;
   /** @nullable */
+  ageCategory?: string | null;
+  /** @nullable */
   bio?: string | null;
   rating: number;
   rank: number;

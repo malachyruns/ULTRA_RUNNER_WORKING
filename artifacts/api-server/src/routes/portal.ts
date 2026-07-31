@@ -15,6 +15,7 @@ import { requireOrganizer } from "../middleware/requireOrganizer";
 import { computeDifficultyScore} from "../lib/difficulty";
 import { normalizeRunner, normalizeRace } from "./runners";
 import { importRaceResults } from "../lib/importRace";
+import { scrapeUrl } from "../lib/scrapers";
 
 const router = Router();
 
@@ -120,6 +121,71 @@ router.post("/portal/races", requireOrganizer, async (req, res) => {
     organizerId: req.session.organizerId!,
   }).returning();
   res.status(201).json(normalizeRace(race));
+});
+
+// POST /portal/races/scrape-create-import
+// Scrape a race URL, auto-create the race using scraped metadata
+// (falling back to anything explicitly provided in the request body),
+// then import the scraped results.
+router.post("/portal/races/scrape-create-import", requireOrganizer, async (req, res) => {
+  try {
+    const { url, ...raceData } = req.body;
+
+    if (!url) {
+      res.status(400).json({ error: "URL is required" });
+      return;
+    }
+
+    const preview = await scrapeUrl(url);
+
+    if (!preview.results.length) {
+      res.status(422).json({ error: "No results found on this page" });
+      return;
+    }
+
+    const distanceKm = raceData.distanceKm ?? preview.raceDistanceKm ?? 0;
+    const surface = raceData.surface ?? preview.raceSurface ?? "trail";
+
+    const difficultyScore = computeDifficultyScore({
+      surface,
+      totalElevationM: raceData.totalElevationM,
+      distanceKm,
+      weatherConditions: raceData.weatherConditions,
+      technicalityRating: raceData.technicalityRating,
+    });
+
+    const [race] = await db.insert(racesTable).values({
+      name: raceData.name ?? preview.raceName ?? "Unknown Race",
+      location: raceData.location ?? preview.raceLocation ?? "Unknown",
+      country: raceData.country ?? preview.raceCountry ?? "Unknown",
+      countryCode: raceData.countryCode ?? preview.raceCountryCode ?? null,
+      date: raceData.date ?? preview.raceDate ?? new Date().toISOString().split("T")[0],
+      distanceKm: String(distanceKm),
+      category: raceData.category ?? "ultra",
+      surface,
+      totalElevationM: raceData.totalElevationM ?? null,
+      description: raceData.description ?? null,
+      weatherConditions: raceData.weatherConditions ?? null,
+      technicalityRating: raceData.technicalityRating ?? null,
+      difficultyScore: String(difficultyScore),
+      status: "completed",
+      organizerId: req.session.organizerId!,
+    }).returning();
+
+    const importSummary = await importRaceResults(race.id, preview.results, difficultyScore);
+
+    res.status(201).json({
+      raceId: race.id,
+      raceName: race.name,
+      source: preview.source,
+      ...importSummary,
+    });
+  } catch (error) {
+    console.error("Scrape import failed:", error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Scrape import failed",
+    });
+  }
 });
 
 // PATCH /portal/races/:id

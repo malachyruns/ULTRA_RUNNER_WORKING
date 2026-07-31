@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { usePortalSubmitResults, useGetRace, getGetRaceQueryKey, usePortalScrapePreview, usePortalScrapeImport } from "@workspace/api-client-react";
+import { usePortalSubmitResults, useGetRace, getGetRaceQueryKey, usePortalScrapePreview, usePortalAutoCreateRaceImport } from "@workspace/api-client-react";
 import { useLocation, useParams, Link } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
@@ -61,7 +61,7 @@ export default function PortalRaceResults() {
   const [scrapeModalOpen, setScrapeModalOpen] = useState(false);
   const [scrapeUrl, setScrapeUrl] = useState("");
   const previewMutation = usePortalScrapePreview();
-  const importMutation = usePortalScrapeImport();
+  const importMutation = usePortalAutoCreateRaceImport();
 
   const handleScrapeFetch = () => {
     if (!scrapeUrl) return;
@@ -71,7 +71,7 @@ export default function PortalRaceResults() {
   const handleScrapeImport = () => {
     if (!scrapeUrl) return;
     importMutation.mutate(
-      { id, data: { url: scrapeUrl } },
+      { data: { url: scrapeUrl } },
       {
         onSuccess: (data) => {
           toast({

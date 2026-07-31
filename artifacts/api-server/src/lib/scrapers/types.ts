@@ -15,6 +15,10 @@ export interface ScrapePreview {
   raceName: string | null;
   raceDate: string | null;
   raceLocation: string | null;
+  raceCountry?: string | null;
+  raceCountryCode?: string | null;
+  raceDistanceKm?: number | null;
+  raceSurface?: string | null;
   source: string;
   url: string;
   totalFound: number;
@@ -26,16 +30,11 @@ export function parseTimeToSeconds(raw: string): number | null {
   if (!raw || raw.trim() === "") return null;
   let s = raw.trim().toUpperCase();
 
-  // Non-finisher markers show up in this column on some sites
   if (s === "DNF" || s === "DNS" || s === "DSQ" || s === "--" || s === "N/A") return null;
 
-  // Strip trailing unit markers like " H" or " HOURS" (common on DUV: "10:23:45 h")
   s = s.replace(/\s*H(OURS)?\s*$/, "").trim();
-
-  // Remove any remaining stray whitespace between numbers/colons
   s = s.replace(/\s+/g, "");
 
-  // Format: "1D23:45:12" (DUV day prefix)
   const dayMatch = s.match(/^(\d+)D(\d+):(\d+):(\d+)$/);
   if (dayMatch) {
     const [, d, h, m, sec] = dayMatch.map(Number);
@@ -66,34 +65,55 @@ export function parseBirthYear(raw: string, currentYear = new Date().getFullYear
   if (!raw || raw.trim() === "") return null;
   const n = parseInt(raw.trim(), 10);
   if (isNaN(n)) return null;
-  if (n >= 1900 && n <= currentYear) return n;          // Full year
-  if (n >= 0 && n <= 99) return 1900 + n;              // Two-digit year
+  if (n >= 1900 && n <= currentYear) return n;
+  if (n >= 0 && n <= 99) return 1900 + n;
   return null;
 }
 
-/**
- * Derive birth year from an age integer (approximate — within 1 year).
- */
 export function birthYearFromAge(age: number): number {
   return new Date().getFullYear() - age;
 }
 
-/**
- * Normalise an age-category string: "M40-49" → "M40", "F 50-59" → "F50", "Senior" → "Senior".
- * Returns null for empty/unknown values.
- */
 export function normalizeAgeCategory(raw: string): string | null {
   if (!raw || raw.trim() === "") return null;
   const s = raw.trim();
-  // Pattern: gender prefix + decade, e.g. "M40-49", "F40"
   const m = s.match(/^([MFX])\s*(\d{2})/i);
   if (m) return `${m[1].toUpperCase()}${m[2]}`;
-  // No gender prefix but has age range, e.g. "40-49"
   const r = s.match(/^(\d{2})/);
   if (r) return r[1];
-  // Named categories: Senior, Master, Junior, etc.
   if (/^(senior|master|junior|open|elite|vet)/i.test(s)) {
     return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
   }
   return s.length <= 10 ? s : null;
+}
+
+/** Convert "DD.MM.YYYY" (DUV's date format) to "YYYY-MM-DD" (ISO, what the frontend expects) */
+export function parseDuvDate(raw: string): string | null {
+  if (!raw) return null;
+  const s = raw.trim();
+  const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (m) {
+    const [, d, mo, y] = m;
+    return `${y}-${mo.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // already ISO
+  return null;
+}
+
+/** Small lookup for the 3-letter country codes DUV uses next to race/event names */
+const COUNTRY_CODE_MAP: Record<string, string> = {
+  GER: "Germany", USA: "United States", FRA: "France", GBR: "United Kingdom",
+  ITA: "Italy", ESP: "Spain", SUI: "Switzerland", AUT: "Austria",
+  NED: "Netherlands", CAN: "Canada", AUS: "Australia", NZL: "New Zealand",
+  JPN: "Japan", POL: "Poland", CZE: "Czech Republic", SWE: "Sweden",
+  NOR: "Norway", DEN: "Denmark", FIN: "Finland", BEL: "Belgium",
+  POR: "Portugal", IRL: "Ireland", RSA: "South Africa", BRA: "Brazil",
+  MEX: "Mexico", ARG: "Argentina", CHN: "China", KOR: "South Korea",
+  IND: "India", RUS: "Russia", UKR: "Ukraine", ROU: "Romania",
+  BUL: "Bulgaria", CRO: "Croatia", SRB: "Serbia", SLO: "Slovenia",
+  SVK: "Slovakia", HUN: "Hungary", GRE: "Greece", TUR: "Turkey", ISR: "Israel",
+};
+
+export function countryNameFromCode(code: string): string {
+  return COUNTRY_CODE_MAP[code.toUpperCase()] ?? code;
 }

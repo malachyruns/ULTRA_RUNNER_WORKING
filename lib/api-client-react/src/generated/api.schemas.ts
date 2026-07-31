@@ -28,6 +28,8 @@ export interface Runner {
   /** @nullable */
   age?: number | null;
   /** @nullable */
+  ageCategory?: string | null;
+  /** @nullable */
   bio?: string | null;
   rating: number;
   rank: number;
@@ -673,5 +675,18 @@ export type GetRecentActivityParams = {
  * @nullable
  */
 limit?: number | null;
+};
+
+export type PortalAutoCreateRaceImportBody = {
+  url: string;
+};
+
+export type PortalAutoCreateRaceImport200 = {
+  resultsCreated?: number;
+  runnersCreated?: number;
+  runnersUpdated?: number;
+  raceId?: number;
+  raceName?: string;
+  source?: string;
 };
 

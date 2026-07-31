@@ -32,6 +32,8 @@ export * from './organizerRaceUpdate';
 export * from './organizerRaceUpdateStatus';
 export * from './organizerRaceUpdateWeatherConditions';
 export * from './organizerRegisterInput';
+export * from './portalAutoCreateRaceImport200';
+export * from './portalAutoCreateRaceImportBody';
 export * from './race';
 export * from './raceCategory';
 export * from './raceInput';

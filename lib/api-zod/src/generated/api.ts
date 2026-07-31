@@ -35,6 +35,7 @@ export const ListRunnersResponseItem = zod.object({
   "countryCode": zod.string().nullish(),
   "gender": zod.enum(['M', 'F', 'X']),
   "age": zod.number().nullish(),
+  "ageCategory": zod.string().nullish(),
   "bio": zod.string().nullish(),
   "rating": zod.number(),
   "rank": zod.number(),
@@ -100,6 +101,7 @@ export const GetRunnerResponse = zod.object({
   "countryCode": zod.string().nullish(),
   "gender": zod.enum(['M', 'F', 'X']),
   "age": zod.number().nullish(),
+  "ageCategory": zod.string().nullish(),
   "bio": zod.string().nullish(),
   "rating": zod.number(),
   "rank": zod.number(),
@@ -133,6 +135,7 @@ export const UpdateRunnerResponse = zod.object({
   "countryCode": zod.string().nullish(),
   "gender": zod.enum(['M', 'F', 'X']),
   "age": zod.number().nullish(),
+  "ageCategory": zod.string().nullish(),
   "bio": zod.string().nullish(),
   "rating": zod.number(),
   "rank": zod.number(),
@@ -406,6 +409,7 @@ export const GetRaceResultsResponseItem = zod.object({
   "countryCode": zod.string().nullish(),
   "gender": zod.enum(['M', 'F', 'X']),
   "age": zod.number().nullish(),
+  "ageCategory": zod.string().nullish(),
   "bio": zod.string().nullish(),
   "rating": zod.number(),
   "rank": zod.number(),
@@ -478,6 +482,7 @@ export const GetSiteSummaryResponse = zod.object({
   "countryCode": zod.string().nullish(),
   "gender": zod.enum(['M', 'F', 'X']),
   "age": zod.number().nullish(),
+  "ageCategory": zod.string().nullish(),
   "bio": zod.string().nullish(),
   "rating": zod.number(),
   "rank": zod.number(),
@@ -712,23 +717,19 @@ export const PortalScrapePreviewResponse = zod.object({
 
 
 /**
- * @summary Scrape results from a URL and import them for a race
+ * @summary Create a race and import results from a URL
  */
-export const PortalScrapeImportParams = zod.object({
-  "id": zod.coerce.number()
+export const PortalAutoCreateRaceImportBody = zod.object({
+  "url": zod.string().url()
 })
 
-export const PortalScrapeImportBody = zod.object({
-  "url": zod.string()
-})
-
-export const PortalScrapeImportResponse = zod.object({
-  "resultsCreated": zod.number(),
-  "runnersCreated": zod.number(),
-  "runnersUpdated": zod.number(),
-  "difficultyScore": zod.number(),
-  "source": zod.string().nullish(),
-  "raceName": zod.string().nullish()
+export const PortalAutoCreateRaceImportResponse = zod.object({
+  "resultsCreated": zod.number().optional(),
+  "runnersCreated": zod.number().optional(),
+  "runnersUpdated": zod.number().optional(),
+  "raceId": zod.number().optional(),
+  "raceName": zod.string().optional(),
+  "source": zod.string().optional()
 })
 
 

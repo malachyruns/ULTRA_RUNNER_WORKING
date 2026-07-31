@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import {
   usePortalScrapePreview,
-  usePortalScrapeImport,
+  usePortalAutoCreateRaceImport,
   usePortalListRaces,
   usePortalAutoSearch,
   usePortalAutoImport,
@@ -31,7 +31,7 @@ export default function PortalScrape() {
   const [url, setUrl] = useState("");
   const [selectedRaceId, setSelectedRaceId] = useState<string>("");
   const previewMutation = usePortalScrapePreview();
-  const importMutation = usePortalScrapeImport();
+  const importMutation = usePortalAutoCreateRaceImport();
 
   // --- Auto-search state ---
   const [autoRaceId, setAutoRaceId] = useState<string>("");
@@ -49,9 +49,10 @@ export default function PortalScrape() {
   };
 
   const handleManualImport = () => {
-    if (!selectedRaceId || !previewMutation.data) return;
+    if (!url) return;
+
     importMutation.mutate(
-      { id: Number(selectedRaceId), data: { url } },
+      { data: { url } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: getPortalListRacesQueryKey() });
@@ -375,7 +376,7 @@ export default function PortalScrape() {
               </div>
               <Button
                 onClick={handleManualImport}
-                disabled={!selectedRaceId || importMutation.isPending}
+                disabled={importMutation.isPending}
                 className="w-full sm:w-auto font-bold uppercase tracking-widest"
               >
                 <Download className="mr-2 h-4 w-4" />
