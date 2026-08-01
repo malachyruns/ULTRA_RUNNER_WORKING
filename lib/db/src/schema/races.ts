@@ -21,6 +21,7 @@ export const racesTable = pgTable("races", {
   technicalityRating: integer("technicality_rating"),
   difficultyScore: numeric("difficulty_score", { precision: 6, scale: 3 }).notNull().default("1.000"),
   organizerId: integer("organizer_id").references(() => organizersTable.id, { onDelete: "set null" }),
+  sourceUrl: text("source_url").unique(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

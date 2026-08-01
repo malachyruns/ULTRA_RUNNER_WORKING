@@ -87,10 +87,19 @@ export function normalizeAgeCategory(raw: string): string | null {
   return s.length <= 10 ? s : null;
 }
 
-/** Convert "DD.MM.YYYY" (DUV's date format) to "YYYY-MM-DD" (ISO, what the frontend expects) */
+/** Convert "DD.MM.YYYY" (DUV's date format) to "YYYY-MM-DD" (ISO, what the frontend expects).
+ *  DUV sometimes gives a date RANGE for multi-day races, e.g. "30.12.2025-01.01.2026" —
+ *  in that case we use the start date. */
 export function parseDuvDate(raw: string): string | null {
   if (!raw) return null;
-  const s = raw.trim();
+  let s = raw.trim();
+
+  // Multi-day range: take the first date only
+  if (s.includes("-") && /\d{4}-\d{1,2}\.\d{1,2}\.\d{4}$/.test(s) === false) {
+    const rangeMatch = s.match(/^(\d{1,2}\.\d{1,2}\.\d{4})-/);
+    if (rangeMatch) s = rangeMatch[1];
+  }
+
   const m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
   if (m) {
     const [, d, mo, y] = m;

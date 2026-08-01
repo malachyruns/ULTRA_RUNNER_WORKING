@@ -3,6 +3,7 @@ import { db, racesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { z } from "zod/v4";
 import { requireOrganizer } from "../middleware/requireOrganizer";
+import { computeDifficultyScore } from "../lib/difficulty";
 import { scrapeUrl } from "../lib/scrapers";
 import { searchForRaceResults } from "../lib/scrapers/search";
 import { importFromPreview, startImportJob, getJob } from "../lib/pipeline";
@@ -42,33 +43,40 @@ router.post("/portal/scrape-import", requireOrganizer, async (req, res) => {
     return;
   }
 
-
   try {
+    const distanceKm = preview.raceDistanceKm ?? 0;
+    const surface = preview.raceSurface ?? "trail";
+    const difficultyScore = computeDifficultyScore({
+      surface,
+      totalElevationM: null,
+      distanceKm,
+      weatherConditions: null,
+      technicalityRating: null,
+    });
 
     const [race] = await db.insert(racesTable).values({
       name: preview.raceName ?? "Imported Race",
       location: preview.raceLocation ?? "Unknown",
-      country: "Unknown",
-      countryCode: null,
+      country: preview.raceCountry ?? "Unknown",
+      countryCode: preview.raceCountryCode ?? null,
       date: preview.raceDate ?? new Date().toISOString().split("T")[0],
-      distanceKm: "100",
+      distanceKm: String(distanceKm),
       category: "ultra",
-      surface: "trail",
+      surface,
       totalElevationM: null,
       description: `Imported from ${preview.source}`,
       weatherConditions: null,
       technicalityRating: null,
-      difficultyScore: "1",
+      difficultyScore: String(difficultyScore),
       status: "upcoming",
       organizerId: req.session.organizerId!,
+      sourceUrl: url,
     }).returning();
-
 
     const result = await importFromPreview(
       race.id,
       preview
     );
-
 
     res.json({
       ...result,
@@ -77,13 +85,10 @@ router.post("/portal/scrape-import", requireOrganizer, async (req, res) => {
       source: preview.source,
     });
 
-
   } catch (err: unknown) {
-
     res.status(500).json({
       error: err instanceof Error ? err.message : "Import failed"
     });
-
   }
 });
 

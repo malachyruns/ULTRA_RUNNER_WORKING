@@ -34,7 +34,7 @@ export async function scrapeDuv(url: string): Promise<ScrapePreview> {
 
   // ── Race metadata, read from DUV's labeled info table ──────────────────────
   const rawDate = labeledValue($, "Date:");
-  const raceDate = rawDate ? parseDuvDate(rawDate) ?? rawDate : null;
+  const raceDate = rawDate ? parseDuvDate(rawDate) : null;
 
   const rawEvent = labeledValue($, "Event:");
   let raceName: string | null = null;
@@ -73,11 +73,16 @@ export async function scrapeDuv(url: string): Promise<ScrapePreview> {
   }
 
   // Location isn't labeled directly on this page — DUV tucks it into the
-  // "email this page" link's body text: "<race name>, <location>, <date>"
+  // "email this page" link's body text: "<race name>, <location>, <date>".
+  // Some pages have MULTIPLE mailto links (e.g. an unrelated advertising
+  // contact link) — check every one and use whichever actually contains
+  // the date/location body text, instead of assuming it's the first.
   let raceLocation: string | null = null;
-  const mailtoHref = $("a[href^='mailto:']").first().attr("href") ?? "";
-  const bodyMatch = mailtoHref.match(/body=([^&]+)/);
-  if (bodyMatch) {
+  $("a[href^='mailto:']").each((_, el) => {
+    if (raceLocation) return; // already found it, skip the rest
+    const href = $(el).attr("href") ?? "";
+    const bodyMatch = href.match(/body=([^&]+)/);
+    if (!bodyMatch) return;
     try {
       const decoded = decodeURIComponent(bodyMatch[1]);
       const lines = decoded.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
@@ -89,9 +94,9 @@ export async function scrapeDuv(url: string): Promise<ScrapePreview> {
         }
       }
     } catch {
-      // ignore malformed mailto content
+      // ignore malformed mailto content on this particular link, keep checking others
     }
-  }
+  });
 
   const results: ScrapedResult[] = [];
 
