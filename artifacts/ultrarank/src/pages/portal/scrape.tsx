@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import {
   usePortalScrapePreview,
@@ -29,6 +29,9 @@ export default function PortalScrape() {
 
   // --- Manual URL import state ---
   const [url, setUrl] = useState("");
+  const [runSignupIdentifier, setRunSignupIdentifier] = useState("");
+  const [runSignupJob, setRunSignupJob] = useState<any>(null);
+  const [runSignupError, setRunSignupError] = useState<string | null>(null);
   const [selectedRaceId, setSelectedRaceId] = useState<string>("");
   const previewMutation = usePortalScrapePreview();
   const importMutation = usePortalAutoCreateRaceImport();
@@ -39,6 +42,31 @@ export default function PortalScrape() {
   const autoImportMutation = usePortalAutoImport();
 
   const { data: races, isLoading: isLoadingRaces } = usePortalListRaces();
+
+  useEffect(() => {
+    void fetch("/api/portal/runsignup/jobs/latest", { credentials: "include" }).then(async response => {
+      if (response.ok) setRunSignupJob(await response.json());
+    });
+  }, []);
+
+  const startRunSignup = async (mode: "single" | "historical" | "incremental") => {
+    setRunSignupError(null);
+    try {
+      const response = await fetch("/api/portal/runsignup/jobs", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode, ...(mode === "single" ? { identifier: runSignupIdentifier } : {}) }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Could not start RunSignup sync");
+      setRunSignupJob(data);
+    } catch (error) { setRunSignupError(error instanceof Error ? error.message : "Could not start RunSignup sync"); }
+  };
+
+  useEffect(() => {
+    if (!runSignupJob?.id || ["done", "error", "paused"].includes(runSignupJob.status)) return;
+    const timer = window.setInterval(async () => {
+      const response = await fetch(`/api/portal/runsignup/jobs/${runSignupJob.id}`, { credentials: "include" });
+      if (response.ok) setRunSignupJob(await response.json());
+    }, 1500);
+    return () => window.clearInterval(timer);
+  }, [runSignupJob?.id, runSignupJob?.status]);
 
   const handleFetch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,6 +132,35 @@ export default function PortalScrape() {
           </p>
         </div>
       </div>
+
+      <Card className="border-border/50 bg-card/80">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold uppercase tracking-wider">RunSignup API Sync</CardTitle>
+          <CardDescription>Import one RunSignup race/event, run the full historical discovery, or fetch only records changed since the last successful sync.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Input placeholder="RunSignup race URL, race ID, or race:event IDs" value={runSignupIdentifier} onChange={e => setRunSignupIdentifier(e.target.value)} />
+            <Button onClick={() => startRunSignup("single")} disabled={!runSignupIdentifier || (runSignupJob && ["pending", "running"].includes(runSignupJob.status))}>Import race/event</Button>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button variant="secondary" onClick={() => startRunSignup("incremental")}>Incremental sync</Button>
+            <Button variant="outline" onClick={() => startRunSignup("historical")}>Full historical sync</Button>
+          </div>
+          {runSignupError && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertDescription>{runSignupError}</AlertDescription></Alert>}
+          {runSignupJob && (
+            <div className="rounded-lg border border-border/50 p-4 text-sm space-y-2">
+              <p className="font-semibold uppercase">Job #{runSignupJob.id}: {runSignupJob.status}</p>
+              <p className="text-muted-foreground">Discovery page {runSignupJob.discoveryPage ?? 1} · race {runSignupJob.currentRaceId ?? "—"} · event {runSignupJob.currentEventId ?? "—"} · results page {runSignupJob.resultPage ?? 1}</p>
+              {runSignupJob.summary && <p>{runSignupJob.summary.racesEventsProcessed ?? 0} events · {runSignupJob.summary.resultsFound ?? 0} found · {runSignupJob.summary.newRunners ?? 0} new runners · {runSignupJob.summary.matchedRunners ?? 0} matched · {runSignupJob.summary.resultsAdded ?? 0} added · {runSignupJob.summary.resultsUpdated ?? 0} updated · {runSignupJob.summary.duplicatesSkipped ?? 0} unchanged · {runSignupJob.summary.rejectedRecords ?? 0} rejected</p>}
+              {runSignupJob.error && <p className="text-destructive">{runSignupJob.error}</p>}
+              {["pending", "running"].includes(runSignupJob.status) && <Button size="sm" variant="outline" onClick={async () => { await fetch(`/api/portal/runsignup/jobs/${runSignupJob.id}/pause`, { method: "POST", credentials: "include" }); }}>Pause</Button>}
+              {runSignupJob.status === "paused" && <Button size="sm" onClick={async () => { await fetch(`/api/portal/runsignup/jobs/${runSignupJob.id}/resume`, { method: "POST", credentials: "include" }); setRunSignupJob({ ...runSignupJob, status: "pending" }); }}>Resume</Button>}
+              {runSignupJob.status === "error" && <Button size="sm" onClick={async () => { await fetch(`/api/portal/runsignup/jobs/${runSignupJob.id}/resume`, { method: "POST", credentials: "include" }); setRunSignupJob({ ...runSignupJob, status: "pending", error: null }); }}>Retry from checkpoint</Button>}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Success banner */}
       {anySuccess && successData && (

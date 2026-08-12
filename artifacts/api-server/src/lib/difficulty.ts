@@ -1,14 +1,32 @@
 /**
- * Difficulty scoring engine + Elo rating system.
+ * Difficulty scoring engine + rating system.
  *
  * Difficulty score — multiplicative multiplier ≥ 1.0:
  *   score = surface × elevation × weather × technicality
  *
- * Elo rating — pairwise comparison across every runner in a field:
- *   For each pair (A, B): delta = K × margin × (actual − expected)
- *   where expected = 1 / (1 + 10^((Rb − Ra) / 400))
- *   K scales with sqrt(difficulty), normalized by √(fieldSize)
- *   margin scales the swing by how large the time gap was.
+ * Rating system — for each pair of runners in a race field, we compute a
+ * continuous, TIME-BASED performance score (not just win/loss), blended
+ * with a placement-based bonus that matters near the front of the field
+ * and fades to nothing further back. This means:
+ *   - A close finish against a stronger opponent earns real credit even
+ *     if you technically lost — placement alone can't tell "barely lost"
+ *     from "blown out," but time gap can.
+ *   - The outright winner (and other top finishers) get extra credit for
+ *     the placement itself, on top of their time.
+ *   - A runner finishing well back in the field is scored almost purely
+ *     on their time relative to the field — a strong relative performance
+ *     is never diluted just because they placed low.
+ *   - A uniformly fast or slow day for the whole field (weather, course
+ *     conditions) doesn't move anyone's rating — everything is relative
+ *     to that day's own time spread, not absolute times.
+ *
+ * The result of computeEloChanges is NOT a ready-to-apply delta — it's two
+ * separate signals per runner (an "implied rating" for potential gains, and
+ * a conventional weighted delta for losses), which pipeline.ts combines
+ * with confidence-weighting, confirmation-gating, and capping. This split
+ * exists because solving the rating formula "backwards" from a bad result
+ * produces mathematically unstable, unbounded numbers — it's only safe to
+ * use for genuine breakout GAINS, never for losses.
  */
 
 type Surface = "trail" | "road" | "mountain" | "mixed";
@@ -55,11 +73,8 @@ export function computeDifficultyScore(opts: {
   return Math.round(sf * ef * wf * tf * 1000) / 1000;
 }
 
-// ─── Elo engine ───────────────────────────────────────────────────────────────
+// ─── Rating engine ──────────────────────────────────────────────────────────
 
-/**
- * One entry in the race field, used by computeEloChanges.
- */
 export interface FieldEntry {
   runnerId: number;
   /** Rating BEFORE this race — must be a snapshot, not updated mid-loop. */
@@ -69,90 +84,114 @@ export interface FieldEntry {
   finishTimeSeconds: number | null;
 }
 
-/**
- * Margin-of-victory multiplier: bigger time gaps → bigger rating swings.
- * Log-scaled so a runner finishing 10x slower doesn't swing 10x as hard.
- * Returns 1.0 (neutral) when times aren't available or comparable.
- */
-function marginMultiplier(aTime: number | null, bTime: number | null): number {
-  if (!aTime || !bTime || aTime <= 0 || bTime <= 0) return 1.0;
-  const faster = Math.min(aTime, bTime);
-  const slower = Math.max(aTime, bTime);
-  const gapFraction = (slower - faster) / faster;
-  return 1 + Math.log(1 + gapFraction);
+export interface RunnerSignal {
+  /** What rating this ONE result implies, if trusted fully — used for gains only. */
+  impliedRating: number;
+  /** A conventional, proximity-weighted delta (as a %) — used for losses. */
+  standardDeltaPct: number;
+}
+
+const ELO_DIVISOR = 20000;
+const PROXIMITY_SCALE = 3000;
+
+/** Continuous, time-gap-based score between two runners — NOT placement-based. */
+function timeScore(timeA: number | null, timeB: number | null, stdDev: number): number {
+  if (timeA == null || timeB == null) return 0.5;
+  const diff = timeB - timeA; // positive = A was faster
+  return 1 / (1 + Math.exp(-diff / stdDev));
+}
+
+function positionScore(posA: number | null, posB: number | null): number {
+  if (posA == null || posB == null) return 0.5;
+  if (posA < posB) return 1.0;
+  if (posA > posB) return 0.0;
+  return 0.5;
 }
 
 /**
- * Compute pairwise Elo deltas for an entire race field.
- *
- * Rules:
- *  - Lower position number = better finish (1st place beats 2nd place)
- *  - DNF loses against all finishers, ties with other DNFs
- *  - Missing position (no timing data) treated as a draw
- *  - Larger time gaps between two finishers amplify the swing between them
- *
- * K per matchup = (BASE_K × √difficultyScore) / √fieldSize
- *   Difficulty is now dampened (sqrt) so very hard races don't
- *   swing ratings disproportionately relative to their real challenge.
- *
- * Returns Map<runnerId, delta> where delta can be positive or negative.
- * NOTE: delta is now intended to be interpreted as a PERCENTAGE change
- * by the caller (see pipeline.ts), not a flat point addition.
+ * How much placement should influence the score, based on how near the
+ * front of the field a runner finished. Full weight for the outright
+ * winner, tapering linearly to zero by the halfway point of the field —
+ * below that, scoring is purely time-based.
  */
+function placementBlendWeight(position: number | null, fieldSize: number): number {
+  if (position == null || fieldSize <= 1) return 0;
+  const percentile = (position - 1) / (fieldSize - 1); // 0 = winner, 1 = last
+  return Math.max(0, 1 - 2 * percentile);
+}
+
+/** The blended score for A vs B, combining time and (near-the-front-only) placement. */
+function blendedScore(a: FieldEntry, b: FieldEntry, stdDev: number, fieldSize: number): number {
+  if (a.dnf && b.dnf) return 0.5;
+  if (a.dnf) return 0.0;
+  if (b.dnf) return 1.0;
+
+  const tScore = timeScore(a.finishTimeSeconds, b.finishTimeSeconds, stdDev);
+  const pScore = positionScore(a.position, b.position);
+  const weight = placementBlendWeight(a.position, fieldSize);
+  return (1 - weight) * tScore + weight * pScore;
+}
+
 export function computeEloChanges(
   field: FieldEntry[],
-  difficultyScore: number,
-  BASE_K = 32,
-): Map<number, number> {
-  const deltas = new Map<number, number>();
-  for (const e of field) deltas.set(e.runnerId, 0);
+  _difficultyScore: number, // reserved for future difficulty-scaling; not used in the current formula
+): Map<number, RunnerSignal> {
+  const signals = new Map<number, RunnerSignal>();
+  if (field.length < 2) {
+    for (const e of field) signals.set(e.runnerId, { impliedRating: e.rating, standardDeltaPct: 0 });
+    return signals;
+  }
 
-  if (field.length < 2) return deltas;
+  const finishers = field.filter(e => !e.dnf && e.finishTimeSeconds != null);
+  const times = finishers.map(e => e.finishTimeSeconds!);
+  const mean = times.reduce((a, b) => a + b, 0) / (times.length || 1);
+  const variance = times.reduce((a, b) => a + (b - mean) ** 2, 0) / (times.length || 1);
+  const stdDev = (Math.sqrt(variance) || 1) * 0.6;
 
-  const K = (BASE_K * Math.sqrt(difficultyScore)) / Math.sqrt(field.length);
+  const K = 45 / (field.length - 1);
 
   for (let i = 0; i < field.length; i++) {
     const a = field[i];
-    for (let j = i + 1; j < field.length; j++) {
+
+    let impliedWeightedSum = 0;
+    let impliedWeightTotal = 0;
+    let stdWeightedSum = 0;
+    let stdWeightTotal = 0;
+
+    for (let j = 0; j < field.length; j++) {
+      if (i === j) continue;
       const b = field[j];
 
-      // Expected probability that A beats B given pre-race ratings
-      const eA = 1 / (1 + Math.pow(10, (b.rating - a.rating) / 400));
-      const eB = 1 - eA;
+      const sA = blendedScore(a, b, stdDev, field.length);
+      const sAClamped = Math.min(0.98, Math.max(0.02, sA));
 
-      // Actual result for A
-      let sA: number;
-      if (a.dnf && b.dnf) {
-        sA = 0.5;                                   // both DNF → draw
-      } else if (a.dnf) {
-        sA = 0;                                     // A DNF, B finished → A loses
-      } else if (b.dnf) {
-        sA = 1;                                     // A finished, B DNF → A wins
-      } else if (a.position === null || b.position === null) {
-        sA = 0.5;                                   // no timing data → draw
-      } else {
-        sA = a.position < b.position ? 1           // A higher place
-           : a.position > b.position ? 0           // A lower place
-           : 0.5;                                   // tied
-      }
+      // Backward-solve: what rating would make THIS result exactly expected
+      // against B? Only meaningful/safe as a signal for GAINS.
+      const impliedVsB = b.rating - ELO_DIVISOR * Math.log10(1 / sAClamped - 1);
+      const closenessWeight = Math.min(1, Math.max(0.05, 1 - Math.abs(sA - 0.5) * 1.6));
+      impliedWeightedSum += impliedVsB * closenessWeight;
+      impliedWeightTotal += closenessWeight;
 
-      // Margin of victory: no time comparison possible if either DNF'd
-      const margin = (a.dnf || b.dnf)
-        ? 1.0
-        : marginMultiplier(a.finishTimeSeconds, b.finishTimeSeconds);
-
-      deltas.set(a.runnerId, (deltas.get(a.runnerId) ?? 0) + K * margin * (sA - eA));
-      deltas.set(b.runnerId, (deltas.get(b.runnerId) ?? 0) + K * margin * ((1 - sA) - eB));
+      // Conventional expected-vs-actual delta, weighted toward opponents
+      // close in current rating — this is the safe, well-behaved path for LOSSES.
+      const eA = 1 / (1 + Math.pow(10, (b.rating - a.rating) / ELO_DIVISOR));
+      const gap = Math.abs(b.rating - a.rating);
+      const proximityWeight = Math.exp(-gap / PROXIMITY_SCALE);
+      stdWeightedSum += proximityWeight * (sA - eA);
+      stdWeightTotal += proximityWeight;
     }
+
+    const impliedRating = impliedWeightTotal > 0 ? impliedWeightedSum / impliedWeightTotal : a.rating;
+    const normalizedStd = stdWeightTotal > 0 ? (stdWeightedSum / stdWeightTotal) * (field.length - 1) : 0;
+    const standardDeltaPct = K * normalizedStd;
+
+    signals.set(a.runnerId, { impliedRating, standardDeltaPct });
   }
 
-  // Round to 3 decimal places (finer resolution since these are now % values)
-  for (const [id, d] of deltas) deltas.set(id, Math.round(d * 1000) / 1000);
-
-  return deltas;
+  return signals;
 }
 
-/** Endurance level: winner's time / runner's time × 1000. */
+/** Endurance level: winner's time / runner's time × 1000. Stored for display/stats — no longer used to scale rating changes directly, since the time-based scoring above already captures relative performance. */
 export function computeEnduranceLevel(
   winnerTimeSeconds: number | null | undefined,
   runnerTimeSeconds: number | null | undefined,

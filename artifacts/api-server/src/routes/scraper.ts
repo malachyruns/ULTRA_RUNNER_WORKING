@@ -8,6 +8,7 @@ import { scrapeUrl } from "../lib/scrapers";
 import { searchForRaceResults } from "../lib/scrapers/search";
 import { importFromPreview, startImportJob, getJob } from "../lib/pipeline";
 import { logger } from "../lib/logger";
+import { evaluateRankingEligibility } from "../lib/eligibility";
 
 const router = Router();
 
@@ -44,6 +45,8 @@ router.post("/portal/scrape-import", requireOrganizer, async (req, res) => {
   }
 
   try {
+    const eligibility = evaluateRankingEligibility({ distance: preview.raceDistanceKm, distanceUnits: "K", name: preview.raceName });
+    if (!eligibility.eligible) { res.status(422).json({ error: eligibility.reason }); return; }
     const distanceKm = preview.raceDistanceKm ?? 0;
     const surface = preview.raceSurface ?? "trail";
     const difficultyScore = computeDifficultyScore({

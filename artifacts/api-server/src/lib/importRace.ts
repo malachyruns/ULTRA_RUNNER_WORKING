@@ -37,7 +37,7 @@ export async function importRaceResults(
         name: entry.runnerName.trim(),
         country: entry.country ?? "Unknown",
         gender: entry.gender ?? "M",
-        rating: "200",
+        rating: "1000",
         rank: 0,
         totalRaces: 0,
         totalDistanceKm: "0",
@@ -93,7 +93,7 @@ export async function importRaceResults(
     await db.update(runnersTable)
       .set({
         totalRaces: allResults.length,
-        rating: String(200 + totalPoints),
+        rating: String(1000 + totalPoints),
       })
       .where(eq(runnersTable.id, runnerId));
 

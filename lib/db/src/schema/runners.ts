@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, numeric, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, numeric, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -13,14 +13,18 @@ export const runnersTable = pgTable("runners", {
   ageCategory: text("age_category"),
   bio: text("bio"),
   enduranceLevel: numeric("endurance_level", { precision: 8, scale: 2 }),
-  rating: numeric("rating", { precision: 8, scale: 2 }).notNull().default("200"),
-  ratingChange: numeric("rating_change", { precision: 8, scale: 2 }).notNull().default("0"),
+  rating: numeric("rating", { precision: 12, scale: 3 }).notNull().default("1000"),
+  ratingChange: numeric("rating_change", { precision: 10, scale: 3 }).notNull().default("0"),
+  pendingSurprise: numeric("pending_surprise", { precision: 8, scale: 4 }),
   rank: integer("rank").notNull().default(0),
   totalRaces: integer("total_races").notNull().default(0),
   totalDistanceKm: numeric("total_distance_km", { precision: 10, scale: 2 }).notNull().default("0"),
   bestFinish: integer("best_finish"),
+  runSignupId: text("runsignup_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  uniqueIndex("runners_runsignup_id_unique").on(table.runSignupId),
+]);
 
 export const insertRunnerSchema = createInsertSchema(runnersTable).omit({ id: true, createdAt: true });
 export type InsertRunner = z.infer<typeof insertRunnerSchema>;

@@ -148,7 +148,7 @@ export default function Races() {
                         <Badge variant="outline" className="font-mono uppercase border-border/50">{race.surface}</Badge>
                         {race.distanceKm && (
                           <span className="text-xs font-mono font-medium text-foreground bg-muted px-2 py-0.5 rounded flex items-center">
-                            {race.distanceKm}KM
+                            {race.distanceLabel ?? `${race.distanceKm} km`}
                           </span>
                         )}
                         {race.totalElevationM && (

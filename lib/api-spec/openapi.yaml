@@ -911,6 +911,8 @@ components:
           type: string
         distanceKm:
           type: number
+        distanceLabel:
+          type: ["string", "null"]
         category:
           type: string
           enum: [50k, 100k, 50mi, 100mi, 200mi, other]

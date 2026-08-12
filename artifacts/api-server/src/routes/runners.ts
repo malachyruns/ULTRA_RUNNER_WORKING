@@ -178,6 +178,7 @@ function normalizeRace(r: typeof racesTable.$inferSelect) {
     countryCode: r.countryCode ?? null,
     date: r.date,
     distanceKm: parseFloat(r.distanceKm),
+    distanceLabel: r.distanceLabel ?? null,
     category: r.category,
     surface: r.surface,
     totalElevationM: r.totalElevationM ?? null,

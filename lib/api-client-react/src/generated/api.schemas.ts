@@ -143,6 +143,8 @@ export interface Race {
   countryCode?: string | null;
   date: string;
   distanceKm: number;
+  /** @nullable */
+  distanceLabel?: string | null;
   category: RaceCategory;
   surface: RaceSurface;
   /** @nullable */

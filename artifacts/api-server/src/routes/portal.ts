@@ -16,6 +16,7 @@ import { computeDifficultyScore} from "../lib/difficulty";
 import { normalizeRunner, normalizeRace } from "./runners";
 import { importRaceResults } from "../lib/importRace";
 import { scrapeUrl } from "../lib/scrapers";
+import { evaluateRankingEligibility } from "../lib/eligibility";
 
 const router = Router();
 
@@ -96,6 +97,8 @@ router.get("/portal/races", requireOrganizer, async (req, res) => {
 // POST /portal/races
 router.post("/portal/races", requireOrganizer, async (req, res) => {
   const body = PortalCreateRaceBody.parse(req.body);
+  const eligibility = evaluateRankingEligibility({ distance: body.distanceKm, distanceUnits: "K", name: body.name });
+  if (!eligibility.eligible) { res.status(422).json({ error: eligibility.reason }); return; }
   const difficultyScore = computeDifficultyScore({
     surface: body.surface,
     totalElevationM: body.totalElevationM,
@@ -144,6 +147,8 @@ router.post("/portal/races/scrape-create-import", requireOrganizer, async (req, 
     }
 
     const distanceKm = raceData.distanceKm ?? preview.raceDistanceKm ?? 0;
+    const eligibility = evaluateRankingEligibility({ distance: distanceKm, distanceUnits: "K", name: raceData.name ?? preview.raceName });
+    if (!eligibility.eligible) { res.status(422).json({ error: eligibility.reason }); return; }
     const surface = raceData.surface ?? preview.raceSurface ?? "trail";
 
     const difficultyScore = computeDifficultyScore({

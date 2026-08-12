@@ -9,6 +9,10 @@ export interface ScrapedResult {
   birthYear?: number | null;
   /** Age category label, e.g. "M40", "F50-59", "Senior" */
   ageCategory?: string | null;
+  sourceRunnerId?: string | null;
+  sourceResultId?: string | null;
+  sourceRegistrationId?: string | null;
+  sourceModifiedAt?: Date | null;
 }
 
 export interface ScrapePreview {

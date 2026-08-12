@@ -72,7 +72,7 @@ export default function RaceDetail() {
                   </div>
 
                   <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <MetricCard icon={Activity} label="Distance" value={`${race?.distanceKm ?? 0} km`} accent />
+                    <MetricCard icon={Activity} label="Distance" value={race?.distanceLabel ?? `${race?.distanceKm ?? 0} km`} accent />
                     <MetricCard icon={Mountain} label="Elevation" value={`+${formatNumber(race?.totalElevationM ?? 0)} m`} />
                     <MetricCard icon={Gauge} label="Technicality" value={race?.technicalityRating ? `${race.technicalityRating}/10` : "-"} />
                     <MetricCard icon={Users} label="Finishers" value={String(race?.finishersCount ?? 0)} />
